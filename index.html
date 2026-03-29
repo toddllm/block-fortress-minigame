@@ -186,7 +186,7 @@ function repairBase(n){const dead=baseBlocks.filter(b=>!b.alive);for(let i=0;i<M
 function startGame(){
   state='playing';score=0;wave=0;waveTimer=100;gameWon=false;
   shootRate=12;bDmg=1;bSpd=10;bPierce=0;multi=1;bombN=3;
-  bullets=[];enemies=[];powerups=[];particles=[];floatTexts=[];eBullets=[];bossFX=[];meteors=[];
+  bullets=[];enemies=[];powerups=[];particles=[];floatTexts=[];eBullets=[];bossFX=[];meteors=[];ufos=[];aliens=[];stormActive=false;stormTimer=0;
   glitchBoss=null;glitchPhase=0;glitchClones=[];orbMode=false;orb=null;orbDeathAnim=0;orbPixels=[];secretUnlocked=false;
   simonActive=false;simonPending=false;simonPhase=0;simonTimer=0;lightning=null;
   camFloating=false;
@@ -242,20 +242,32 @@ function spawnWaveEnemy(){
   // Waves 11-17: spawn boss on last enemy, rest are meteors + regular enemies
   if(wave>=11&&wave<=17&&waveELeft===0){spawnCosmicBoss(sx,sy,wave);return;}
   if(wave>=11&&wave<=17){
-    // 60% chance meteor, 40% regular enemy
-    if(Math.random()<0.6){spawnMeteor(sx,sy);return;}
+    // Varied spawns: meteors, aliens, UFOs
+    const r=Math.random();
+    if(r<0.4){spawnMeteor(sx,sy);return;}
+    if(r<0.55){spawnAlien(sx,sy);return;}
+    if(r<0.65&&ufos.length<2){spawnUFO();return;}
   }
+  // Storms trigger occasionally in waves 8+
+  if(wave>=8&&!stormActive&&Math.random()<0.003)triggerStorm();
   if(wave===10&&waveELeft===0){spawnEnemy(sx,sy,5);return;}
   if(wave===8&&waveELeft===0){spawnEnemy(sx,sy,4);return;}
   if(wave===5&&waveELeft===0){spawnEnemy(sx,sy,3);return;}
-  if(wave>=7&&Math.random()<0.12)spawnEnemy(sx,sy,2);
+  // Scale enemy tiers with wave, capped by available tiers (0-19)
+  const maxTier=Math.min(19,Math.floor(wave*0.8));
+  if(wave>=12&&Math.random()<0.08)spawnEnemy(sx,sy,Math.min(maxTier,rndI(3,Math.min(6,maxTier))));
+  else if(wave>=7&&Math.random()<0.12)spawnEnemy(sx,sy,rndI(1,Math.min(3,maxTier)));
   else if(wave>=4&&Math.random()<0.2)spawnEnemy(sx,sy,1);
   else spawnEnemy(sx,sy,0);
 }
 
 // ─── ENEMY SYSTEM ───
 const ETYPES=['normal','fast','tank','shooter','zigzag'];
-const TSIZES=[10,18,30,48,68,90],THP=[1,3,8,20,50,120],TSPD=[1.4,1.2,1.0,0.7,0.5,0.35],TPTS=[10,30,80,250,600,1500];
+// 20 tiers: 0-19 (tier 0 = tiny 1HKO, each splits into 2x of tier below)
+const TSIZES=[10,14,18,22,26,30,34,38,42,46,50,54,58,62,66,70,76,82,88,96];
+const THP=[1,2,4,6,10,16,24,35,50,70,95,125,160,200,250,320,400,500,650,850];
+const TSPD=[1.6,1.5,1.4,1.3,1.25,1.2,1.1,1.0,0.95,0.9,0.85,0.8,0.75,0.7,0.65,0.6,0.55,0.5,0.45,0.4];
+const TPTS=[5,10,20,40,70,110,160,220,300,400,500,650,800,1000,1300,1600,2000,2500,3200,4000];
 
 function spawnEnemy(x,y,tier,type){
   if(!type)type=ETYPES[rndI(0,Math.min(wave,ETYPES.length-1))];
@@ -282,6 +294,33 @@ function spawnMeteor(x,y){
     vx:(BX-x)*0.002+rnd(-0.5,0.5),vy:Math.abs(BY-y)*0.003+rnd(0.5,1.5),flash:0,
     jagged:Array.from({length:8},()=>rnd(0.7,1.3)) // irregular shape
   });
+}
+
+// ─── UFO SPAWNER ───
+let ufos=[];
+function spawnUFO(){
+  ufos.push({x:rnd(60,W-60),y:-30,hp:40+wave*8,maxHP:40+wave*8,size:30,
+    speed:1.2,angle:rnd(0,Math.PI*2),moveAngle:rnd(0,Math.PI*2),
+    spawnCD:120,flash:0,bobT:rnd(0,6)});
+}
+
+// ─── ALIENS (jumping, some harmless, some dangerous) ───
+let aliens=[];
+function spawnAlien(x,y){
+  const harmless=Math.random()<0.35;
+  aliens.push({x,y,vx:rnd(-1,1),vy:0,size:12+rndI(0,6),
+    onGround:false,jumpCD:30+rndI(0,40),hp:harmless?1:3+Math.floor(wave*0.5),
+    maxHP:harmless?1:3+Math.floor(wave*0.5),
+    harmless,flash:0,color:harmless?'#88cc88':'#cc4488',
+    points:harmless?5:20+wave*2,jumpForce:-3-Math.random()*2});
+}
+
+// ─── STORM ATTACKS (environmental hazard) ───
+let stormActive=false,stormTimer=0;
+function triggerStorm(){
+  stormActive=true;stormTimer=300+rndI(0,120);
+  addFT(W/2,H/2-30,'STORM INCOMING!','#ff8844',true);
+  sfxThunder();
 }
 
 // ─── 7 COSMIC BOSSES (waves 11-17) ───
@@ -811,19 +850,38 @@ function updateSimon(){
     }
   }
 
-  // ─── PHASE 3: 30 Lightning Attacks ───
+  // ─── PHASE 3: Boss attacks first, THEN 30 lightning attacks ───
   if(simonPhase===3){
     simonAttackCD--;
-    if(simonAttackCD<=0&&simonAttackIdx<30){
-      doSimonAttack(simonAttackIdx);
-      simonAttackIdx++;
-      // Vary timing: faster as attacks progress
-      simonAttackCD=simonAttackIdx<10?35:simonAttackIdx<20?25:18;
+    // First 15 attacks: reuse all previous cosmic boss attack types
+    if(simonAttackCD<=0&&simonAttackIdx<15){
+      const bossAtks=['orbit','flare','spore','beam','gravity','drain','crash','orbit','flare','spore','beam','gravity','drain','crash','crash'];
+      const atk=bossAtks[simonAttackIdx];
+      sAnim.castAnim=15;sAnim.bodyGlow=0.8;setTimeout(()=>{sAnim.bodyGlow=0;},300);
+      shakeT=6;sfxHit();
+      const sx2=simonX,sy2=simonY+50;
+      if(atk==='orbit'){for(let i=0;i<10;i++){const a=(Math.PI*2/10)*i;eBullets.push({x:sx2+Math.cos(a)*50,y:sy2+Math.sin(a)*50,vx:Math.cos(a)*2.5,vy:Math.sin(a)*2.5,size:4,color:'#aaccff'});}}
+      else if(atk==='flare'){for(let i=0;i<7;i++){const a=ang(sx2,sy2,BX,BY)+rnd(-0.5,0.5);eBullets.push({x:sx2,y:sy2,vx:Math.cos(a)*3.5,vy:Math.sin(a)*3.5,size:5,color:'#ffcc00'});}}
+      else if(atk==='spore'){for(let i=0;i<5;i++){const a=rnd(0,Math.PI*2);eBullets.push({x:sx2,y:sy2,vx:Math.cos(a)*1.5,vy:Math.sin(a)*1.5,size:6,color:'#66ff44',homing:true,homeSpd:0.025,life:180});}}
+      else if(atk==='beam'){bossFX.push({type:'laser',x:sx2,y:sy2,angle:ang(sx2,sy2,BX,BY),life:30,width:4,maxWidth:18,color:'#aa44ff'});sfxLaser();for(const b of aliveBlocks())if(Math.random()<0.08)destroyBlk(b);}
+      else if(atk==='gravity'){for(let i=0;i<12;i++){const a=(Math.PI*2/12)*i;eBullets.push({x:BX+Math.cos(a)*100,y:BY+Math.sin(a)*100,vx:-Math.cos(a)*2.5,vy:-Math.sin(a)*2.5,size:4,color:'#88aaff'});}}
+      else if(atk==='drain'){const alive=aliveBlocks();for(let i=0;i<Math.min(4,alive.length);i++)destroyBlk(alive[rndI(0,alive.length-1)]);addFT(sx2,sy2-20,'DRAIN','#ff0000');}
+      else if(atk==='crash'){for(let i=0;i<10;i++)eBullets.push({x:sx2+rnd(-20,20),y:sy2,vx:rnd(-3,3),vy:rnd(1,4),size:5,color:'#ff8844'});}
+      if(Math.random()<0.4){bossFX.push({type:'shockwave',x:sx2,y:sy2,radius:0,maxRadius:100+Math.random()*60,life:25,color:['#ffcc00','#ff4444','#44aaff','#44ff44'][rndI(0,3)]});}
+      addFT(sx2,sy2-40,atk.toUpperCase(),'#ffaa00');
+      sAnim.targetArmL=rnd(-1.2,-0.3);sAnim.targetArmR=rnd(-1.2,-0.3);sAnim.targetHead=rnd(-0.1,0.1);
+      simonAttackIdx++;simonAttackCD=28;
     }
-    // After all 30 attacks, final strike
-    if(simonAttackIdx>=30&&simonBolts.length===0&&simonAttackCD<-30){
+    // Then 30 lightning attacks (indexes 15-44)
+    if(simonAttackCD<=0&&simonAttackIdx>=15&&simonAttackIdx<45){
+      doSimonAttack(simonAttackIdx-15);
+      simonAttackIdx++;
+      simonAttackCD=simonAttackIdx<25?32:simonAttackIdx<35?22:16;
+    }
+    // After all 45 attacks, final strike
+    if(simonAttackIdx>=45&&simonBolts.length===0&&simonAttackCD<-30){
       simonPhase=4;simonTimer=0;
-      sAnim.targetArmL=-1.2;sAnim.targetArmR=-1.2; // arms up
+      sAnim.targetArmL=-1.2;sAnim.targetArmR=-1.2;
       playTone(200,0.8,'sine',0.05);
       addFT(W/2,simonY+80,'Enough.','#ffcc00',true);
     }
@@ -1307,8 +1365,10 @@ function useBomb(){
     e.flash=8;spawnP(e.x,e.y,'#fff',6,4);
     if(e.hp<=0)killEnemy(i);
   }
-  // Damage meteors
+  // Damage meteors, UFOs, aliens
   for(let i=meteors.length-1;i>=0;i--){meteors[i].hp-=5;meteors[i].flash=6;if(meteors[i].hp<=0){score+=meteors[i].points;spawnP(meteors[i].x,meteors[i].y,meteors[i].color,6,4);meteors.splice(i,1);}}
+  for(let i=ufos.length-1;i>=0;i--){ufos[i].hp-=8;ufos[i].flash=6;if(ufos[i].hp<=0){score+=100;spawnP(ufos[i].x,ufos[i].y,'#88ff88',10,5);ufos.splice(i,1);}}
+  for(let i=aliens.length-1;i>=0;i--){aliens[i].hp-=3;aliens[i].flash=5;if(aliens[i].hp<=0){score+=aliens[i].points;spawnP(aliens[i].x,aliens[i].y,aliens[i].color,5,3);aliens.splice(i,1);}}
   // Damage orb too
   if(orbMode&&orb){orb.hp-=8;orb.flash=8;if(orb.hp<=0)startOrbDeath();}
   spawnP(BX,BY,'#fff',40,14);addFT(BX,BY-100,'BOMB!','#ff0',true);
@@ -1532,8 +1592,68 @@ function update(){
       }
     }
   }
-  // Bomb also damages meteors
-  // (handled inline in useBomb below)
+  // UFOs
+  for(let i=ufos.length-1;i>=0;i--){
+    const u=ufos[i];u.bobT+=0.06;
+    u.moveAngle+=rnd(-0.05,0.05);
+    u.x+=Math.cos(u.moveAngle)*u.speed;u.y+=Math.sin(u.moveAngle)*u.speed*0.3+0.2;
+    u.x=Math.max(30,Math.min(W-30,u.x));u.y=Math.max(20,Math.min(H*0.5,u.y));
+    if(u.flash>0)u.flash--;
+    u.spawnCD--;
+    if(u.spawnCD<=0){u.spawnCD=80+rndI(0,40);spawnEnemy(u.x+rnd(-20,20),u.y+20,0);spawnP(u.x,u.y+15,'#88ff88',4,3);}
+    // Bullet hits
+    for(let j=bullets.length-1;j>=0;j--){
+      const b=bullets[j];
+      if(dst(b.x,b.y,u.x,u.y)<u.size+b.size){
+        u.hp-=b.damage;u.flash=5;spawnP(b.x,b.y,'#88ff88',3,2);sfxHit();
+        if(u.hp<=0){score+=100+wave*10;spawnP(u.x,u.y,'#88ff88',15,6);addFT(u.x,u.y-15,`+${100+wave*10}`,'#ff0');sfxKill();if(Math.random()<0.3)spawnPowerup(u.x,u.y);ufos.splice(i,1);}
+        if(b.pierce>0){b.pierce--;b.damage*=0.8;}else{bullets.splice(j,1);}break;
+      }
+    }
+  }
+  // Aliens
+  for(let i=aliens.length-1;i>=0;i--){
+    const a2=aliens[i];
+    if(a2.flash>0)a2.flash--;
+    a2.vy+=0.12; // gravity
+    a2.x+=a2.vx;a2.y+=a2.vy;
+    // Ground = base level
+    if(a2.y>=BY-a2.size/2){a2.y=BY-a2.size/2;a2.vy=0;a2.onGround=true;}
+    // Jump toward base
+    if(a2.onGround){a2.jumpCD--;if(a2.jumpCD<=0){a2.jumpCD=40+rndI(0,30);a2.vy=a2.jumpForce;a2.vx=(BX-a2.x)*0.015+rnd(-0.5,0.5);a2.onGround=false;}}
+    // Hit base blocks (dangerous ones only)
+    if(!a2.harmless){
+      const{block:blk,dist:bd}=closestBlk(a2.x,a2.y);
+      if(blk&&bd<a2.size/2+BS){destroyBlk(blk);spawnP(a2.x,a2.y,a2.color,4,3);aliens.splice(i,1);continue;}
+    }
+    // Off screen
+    if(a2.x<-40||a2.x>W+40){aliens.splice(i,1);continue;}
+    // Bullet hits
+    for(let j=bullets.length-1;j>=0;j--){
+      const b=bullets[j];
+      if(dst(b.x,b.y,a2.x,a2.y)<a2.size/2+b.size){
+        a2.hp-=b.damage;a2.flash=4;sfxHit();
+        if(a2.hp<=0){score+=a2.points;spawnP(a2.x,a2.y,a2.color,6,3);addFT(a2.x,a2.y-10,a2.harmless?'oops':'+'+ a2.points,a2.harmless?'#888':'#ff0');sfxKill();aliens.splice(i,1);}
+        if(b.pierce>0){b.pierce--;b.damage*=0.8;}else{bullets.splice(j,1);}break;
+      }
+    }
+  }
+  // Storm
+  if(stormActive){
+    stormTimer--;
+    if(stormTimer<=0){stormActive=false;}
+    else{
+      // Random lightning strikes on screen
+      if(frameN%20===0){
+        const sx3=rnd(50,W-50),sy3=rnd(50,H-100);
+        simonBolts.push(genBolt(sx3,-10,sx3+rnd(-30,30),sy3,15));
+        if(Math.random()<0.3){const{block:blk}=closestBlk(sx3,sy3);if(blk)destroyBlk(blk);}
+        if(frameN%60===0)sfxThunder();
+      }
+      // Spawn random aliens during storm
+      if(frameN%45===0)spawnAlien(rnd(0,W),-20);
+    }
+  }
 
   // Powerups
   for(let i=powerups.length-1;i>=0;i--){
@@ -1652,6 +1772,51 @@ function draw(){
     // HP bar for bigger meteors
     if(m.tier>0&&m.hp<m.maxHP){X.fillStyle='#400';X.fillRect(-m.size/2,-m.size/2-6,m.size,3);X.fillStyle='#f84';X.fillRect(-m.size/2,-m.size/2-6,m.size*(m.hp/m.maxHP),3);}
     X.restore();
+  }
+
+  // UFOs
+  for(const u of ufos){
+    X.save();X.translate(u.x,u.y+Math.sin(u.bobT)*4);
+    X.fillStyle=u.flash>0?'#fff':'#88ff88';X.shadowColor='#88ff88';X.shadowBlur=8;
+    // Saucer body
+    X.beginPath();X.ellipse(0,0,u.size,u.size*0.35,0,0,Math.PI*2);X.fill();
+    // Dome
+    X.fillStyle=u.flash>0?'#fff':'#aaffaa';
+    X.beginPath();X.ellipse(0,-u.size*0.2,u.size*0.5,u.size*0.4,0,Math.PI,0);X.fill();
+    // Lights
+    for(let i=0;i<5;i++){const a=(Math.PI*2/5)*i+frameN*0.05;X.fillStyle=`hsl(${frameN*3+i*72},80%,60%)`;X.beginPath();X.arc(Math.cos(a)*u.size*0.7,Math.sin(a)*u.size*0.15,2,0,Math.PI*2);X.fill();}
+    // Beam below (when spawning)
+    if(u.spawnCD<20){X.fillStyle='rgba(136,255,136,0.15)';X.beginPath();X.moveTo(-8,u.size*0.3);X.lineTo(8,u.size*0.3);X.lineTo(15,60);X.lineTo(-15,60);X.fill();}
+    X.shadowBlur=0;
+    // HP bar
+    if(u.hp<u.maxHP){X.fillStyle='#030';X.fillRect(-u.size,-u.size*0.5-8,u.size*2,3);X.fillStyle='#8f8';X.fillRect(-u.size,-u.size*0.5-8,u.size*2*(u.hp/u.maxHP),3);}
+    X.fillStyle='#aaffaa';X.font='8px monospace';X.textAlign='center';X.fillText('UFO',0,-u.size*0.5-12);X.textAlign='start';
+    X.restore();
+  }
+  // Aliens
+  for(const a2 of aliens){
+    X.save();X.translate(a2.x,a2.y);
+    const s2=a2.size;
+    X.fillStyle=a2.flash>0?'#fff':a2.color;
+    X.shadowColor=a2.color;X.shadowBlur=4;
+    // Body
+    X.fillRect(-s2/2,-s2/2,s2,s2);
+    // Eyes
+    X.fillStyle='#fff';X.fillRect(-s2*0.3,-s2*0.2,s2*0.2,s2*0.2);X.fillRect(s2*0.1,-s2*0.2,s2*0.2,s2*0.2);
+    X.fillStyle='#000';X.fillRect(-s2*0.25,-s2*0.15,s2*0.1,s2*0.1);X.fillRect(s2*0.15,-s2*0.15,s2*0.1,s2*0.1);
+    // Antennae for harmless
+    if(a2.harmless){X.strokeStyle='#88cc88';X.lineWidth=1;X.beginPath();X.moveTo(-3,-s2/2);X.lineTo(-5,-s2/2-6);X.stroke();X.beginPath();X.moveTo(3,-s2/2);X.lineTo(5,-s2/2-6);X.stroke();}
+    // Legs (when jumping)
+    if(!a2.onGround){X.fillStyle=a2.color;X.fillRect(-s2/2,s2/2,3,4);X.fillRect(s2/2-3,s2/2,3,4);}
+    X.shadowBlur=0;
+    X.restore();
+  }
+  // Storm overlay
+  if(stormActive){
+    X.fillStyle=`rgba(40,20,60,${0.1+Math.sin(frameN*0.1)*0.05})`;X.fillRect(0,0,W,H);
+    // Rain
+    X.strokeStyle='rgba(150,180,255,0.15)';X.lineWidth=1;
+    for(let i=0;i<15;i++){const rx=rnd(0,W),ry=rnd(0,H);X.beginPath();X.moveTo(rx,ry);X.lineTo(rx-2,ry+12);X.stroke();}
   }
 
   // Enemies
