@@ -152,7 +152,7 @@ C.addEventListener('mousemove',e=>{const r=C.getBoundingClientRect();mouseX=e.cl
 C.addEventListener('mousedown',()=>{mouseDown=true;resumeAudio();if(state!=='playing')startGame();});
 C.addEventListener('mouseup',()=>mouseDown=false);
 document.addEventListener('click',()=>{resumeAudio();if(state!=='playing')startGame();});
-document.addEventListener('keydown',e=>{if(e.key===' '){e.preventDefault();useBomb();}if(e.key==='Enter'&&state!=='playing')startGame();});
+document.addEventListener('keydown',e=>{if(e.key===' '){e.preventDefault();useBomb();}if(e.key==='u'||e.key==='U')tryUpgradeCannon();if(e.key==='Enter'&&state!=='playing')startGame();});
 C.addEventListener('touchstart',e=>{e.preventDefault();resumeAudio();const t=e.touches[0],r=C.getBoundingClientRect();mouseX=t.clientX-r.left;mouseY=t.clientY-r.top;mouseDown=true;if(state!=='playing')startGame();});
 C.addEventListener('touchmove',e=>{e.preventDefault();const t=e.touches[0],r=C.getBoundingClientRect();mouseX=t.clientX-r.left;mouseY=t.clientY-r.top;});
 C.addEventListener('touchend',()=>mouseDown=false);
@@ -187,6 +187,7 @@ function startGame(){
   state='playing';score=0;wave=0;waveTimer=100;gameWon=false;
   shootRate=12;bDmg=1;bSpd=10;bPierce=0;multi=1;bombN=3;
   bullets=[];enemies=[];powerups=[];particles=[];floatTexts=[];eBullets=[];bossFX=[];meteors=[];ufos=[];aliens=[];stormActive=false;stormTimer=0;
+  spazeMoney=0;cannonLevel=1;cannonSkin=0;friendlyUFOs=[];micCooldown=0;
   glitchBoss=null;glitchPhase=0;glitchClones=[];orbMode=false;orb=null;orbDeathAnim=0;orbPixels=[];secretUnlocked=false;
   simonActive=false;simonPending=false;simonPhase=0;simonTimer=0;lightning=null;
   camFloating=false;
@@ -263,11 +264,14 @@ function spawnWaveEnemy(){
 
 // ─── ENEMY SYSTEM ───
 const ETYPES=['normal','fast','tank','shooter','zigzag'];
-// 20 tiers: 0-19 (tier 0 = tiny 1HKO, each splits into 2x of tier below)
-const TSIZES=[10,14,18,22,26,30,34,38,42,46,50,54,58,62,66,70,76,82,88,96];
-const THP=[1,2,4,6,10,16,24,35,50,70,95,125,160,200,250,320,400,500,650,850];
-const TSPD=[1.6,1.5,1.4,1.3,1.25,1.2,1.1,1.0,0.95,0.9,0.85,0.8,0.75,0.7,0.65,0.6,0.55,0.5,0.45,0.4];
-const TPTS=[5,10,20,40,70,110,160,220,300,400,500,650,800,1000,1300,1600,2000,2500,3200,4000];
+// 50 tiers: 0-49 (tier 0 = tiny 1HKO, each splits into 2x of tier below)
+const TSIZES=[];const THP=[];const TSPD=[];const TPTS=[];
+for(let i=0;i<50;i++){
+  TSIZES.push(Math.floor(8+i*2.2));
+  THP.push(Math.max(1,Math.floor(1*Math.pow(1.18,i))));
+  TSPD.push(Math.max(0.15,1.6-i*0.03));
+  TPTS.push(Math.floor(5*Math.pow(1.2,i)));
+}
 
 function spawnEnemy(x,y,tier,type){
   if(!type)type=ETYPES[rndI(0,Math.min(wave,ETYPES.length-1))];
@@ -322,6 +326,97 @@ function triggerStorm(){
   addFT(W/2,H/2-30,'STORM INCOMING!','#ff8844',true);
   sfxThunder();
 }
+
+// ─── SPAZE-MONEY SYSTEM ───
+let spazeMoney=0;
+let cannonLevel=1; // 1-5
+let cannonSkin=0; // 0=default,1=gold,2=plasma,3=void,4=godly
+const CANNON_UPGRADES=[
+  {name:'Basic',cost:0,dmgMul:1,rateMul:1,color:'#66aaff'},
+  {name:'Reinforced',cost:50,dmgMul:1.3,rateMul:0.9,color:'#88ccff'},
+  {name:'Plasma',cost:150,dmgMul:1.8,rateMul:0.75,color:'#44ffaa'},
+  {name:'Void',cost:400,dmgMul:2.5,rateMul:0.6,color:'#aa44ff'},
+  {name:'Godly',cost:1000,dmgMul:4,rateMul:0.45,color:'#ffcc00'}
+];
+const CANNON_SKINS=['#66aaff','#ffcc00','#44ffaa','#8844ff','#ff4444'];
+function spawnCoin(x,y,val){
+  powerups.push({x,y,type:{name:`+${val}$`,color:'#ffdd00',icon:'$',apply:()=>{spazeMoney+=val;}},size:14,life:500,vy:-1.5,bobT:rnd(0,6)});
+}
+function tryUpgradeCannon(){
+  if(cannonLevel>=5)return;
+  const cost=CANNON_UPGRADES[cannonLevel].cost;
+  if(spazeMoney>=cost){spazeMoney-=cost;cannonLevel++;addFT(BX,BY-80,'CANNON UPGRADED!','#ffcc00',true);sfxPowerup();}
+}
+
+// ─── BOMB-ONLY BOSS ───
+function spawnBombBoss(x,y){
+  enemies.push({x,y,size:50,tier:4,type:'bombonly',hp:80+wave*15,maxHP:80+wave*15,speed:0.5,
+    points:500+wave*50,shootTimer:80,zigTimer:0,zigDir:1,flash:0,
+    ab1:100,ab2:200,ab3:9999,shieldHP:0,maxShieldHP:0,shieldCD:0,enraged:false,summonT:9999,
+    isGlitch:false,isClone:false,isUnderlord:false,glitchPhase:0,
+    tpCD:9999,cloneCD:9999,transformCD:9999,phaseCD:9999,
+    majorCD1:9999,majorCD2:9999,minorCD1:9999,minorCD2:9999,minorCD3:9999,minorCD4:9999,minorCD5:9999,
+    underlordAb1:0,underlordAb2:0,underlordAb3:0,
+    glitchOffset:0,transformedAs:null,transformTimer:0,
+    cosmicName:'BOMB ONLY',cosmicColor:'#ff8800',cosmicAtk:null,cosmicCD1:9999,cosmicCD2:9999,cosmicAngle:0,
+    bombOnly:true // KEY FLAG: only bombs damage this enemy
+  });
+  addFT(x,y-30,'BOMB-ONLY BOSS!','#ff8800',true);
+}
+
+// ─── SPAZE-MONEY THIEF ───
+function spawnThief(x,y){
+  enemies.push({x,y,size:18,tier:0,type:'thief',hp:5+wave,maxHP:5+wave,speed:2.0,
+    points:30,shootTimer:0,zigTimer:0,zigDir:1,flash:0,
+    ab1:9999,ab2:9999,ab3:9999,shieldHP:0,maxShieldHP:0,shieldCD:0,enraged:false,summonT:9999,
+    isGlitch:false,isClone:false,isUnderlord:false,glitchPhase:0,
+    tpCD:9999,cloneCD:9999,transformCD:9999,phaseCD:9999,
+    majorCD1:9999,majorCD2:9999,minorCD1:9999,minorCD2:9999,minorCD3:9999,minorCD4:9999,minorCD5:9999,
+    underlordAb1:0,underlordAb2:0,underlordAb3:0,
+    glitchOffset:0,transformedAs:null,transformTimer:0,
+    cosmicName:null,cosmicColor:null,cosmicAtk:null,cosmicCD1:9999,cosmicCD2:9999,cosmicAngle:0,
+    isThief:true,stealCD:60,stealAmount:5+Math.floor(wave*2)
+  });
+}
+
+// ─── MICROPHONE-TRIGGERED FRIENDLY UFO ───
+let micActive=false,micStream=null,micAnalyser=null,micData=null;
+let friendlyUFOs=[];
+let micCooldown=0;
+(function initMic(){
+  navigator.mediaDevices.getUserMedia({audio:true}).then(stream=>{
+    micStream=stream;micActive=true;
+    micAnalyser=AC.createAnalyser();micAnalyser.fftSize=256;
+    const src=AC.createMediaStreamSource(stream);src.connect(micAnalyser);
+    micData=new Uint8Array(micAnalyser.frequencyBinCount);
+  }).catch(()=>{/* no mic */});
+})();
+function checkMic(){
+  if(!micActive||!micAnalyser||micCooldown>0)return false;
+  micAnalyser.getByteFrequencyData(micData);
+  let sum=0;for(let i=0;i<micData.length;i++)sum+=micData[i];
+  const avg=sum/micData.length;
+  return avg>40; // voice detected threshold
+}
+function spawnFriendlyUFO(){
+  micCooldown=300; // 5 sec cooldown
+  friendlyUFOs.push({x:BX+rnd(-80,80),y:BY-100,hp:30,life:480,
+    targetX:rnd(60,W-60),targetY:rnd(60,H*0.4),shootCD:20});
+  addFT(BX,BY-120,'ALLY UFO!','#44ffaa',true);
+  sfxPowerup();
+}
+
+// ─── INSANE LATE-GAME POWER-UPS ───
+const INSANE_PU=[
+  {name:'NUKE',color:'#ff0000',icon:'N',apply:()=>{for(let i=enemies.length-1;i>=0;i--){enemies[i].hp-=50;enemies[i].flash=10;if(enemies[i].hp<=0)killEnemy(i);}for(let i=meteors.length-1;i>=0;i--){meteors[i].hp-=50;if(meteors[i].hp<=0){score+=meteors[i].points;meteors.splice(i,1);}}shakeT=20;flash('#ff4400',0.6);sfxBomb();}},
+  {name:'TIME WARP',color:'#44aaff',icon:'T',apply:()=>{for(const e of enemies)e.speed*=0.3;setTimeout(()=>{for(const e of enemies)e.speed/=0.3;},5000);addFT(BX,BY-60,'SLOWED!','#44aaff',true);}},
+  {name:'MEGA REPAIR',color:'#44ff44',icon:'★',apply:()=>{repairBase(999);for(let i=0;i<5;i++)spawnP(BX+rnd(-30,30),BY+rnd(-30,30),'#44ff44',8,5);}},
+  {name:'QUAD SHOT',color:'#ff44ff',icon:'4',apply:()=>{multi=Math.min(9,multi+3);shootRate=Math.max(2,shootRate-4);}},
+  {name:'SHIELD',color:'#88ccff',icon:'S',apply:()=>{for(const b of baseBlocks)b.alive=true;aliveN=baseBlocks.length;addFT(BX,BY-60,'FULL SHIELD!','#88ccff',true);}},
+  {name:'GOLD RUSH',color:'#ffdd00',icon:'G',apply:()=>{for(let i=0;i<8;i++)spawnCoin(BX+rnd(-60,60),BY-rnd(40,120),rndI(10,30));}},
+  {name:'LASER MODE',color:'#ff4444',icon:'L',apply:()=>{bDmg+=3;bSpd=Math.min(22,bSpd+4);addFT(BX,BY-60,'LASER MODE!','#ff4444',true);}},
+  {name:'BOMB x5',color:'#ffaa00',icon:'5',apply:()=>{bombN=Math.min(15,bombN+5);}},
+];
 
 // ─── 7 COSMIC BOSSES (waves 11-17) ───
 const COSMIC_BOSSES={
@@ -818,13 +913,21 @@ function updateSimon(){
 
   // ─── PHASE 1: Appearing ───
   if(simonPhase===1){
-    simonAlpha=Math.min(1,t/80);
-    simonY=Math.min(H*0.25,-80+t*1.8);
-    if(t===1){sfxSimonAppear();addFT(W/2,40,'...','#ffcc00',true);}
-    if(t===60)addFT(W/2,60,'Something approaches...','#ffaa00',true);
-    if(t>40&&Math.random()<0.04){flash('#ffff00',0.08);playTone(30+Math.random()*50,0.08,'square',0.015);}
+    // Portal opens first, then Simon emerges
+    if(t<60){
+      // Portal growing phase
+      simonAlpha=0;
+      if(t===1){sfxGlitch();sfxSimonAppear();addFT(W/2,H*0.22,'A portal opens...','#ffcc00',true);}
+      if(t%5===0)spawnP(W/2+rnd(-30,30),H*0.25+rnd(-30,30),'#ffcc00',3,4);
+    } else {
+      // Simon emerging from portal
+      simonAlpha=Math.min(1,(t-60)/60);
+      simonY=Math.min(H*0.25,H*0.25-40+(t-60)*0.7);
+      if(t===60){addFT(W/2,H*0.15,'!!!','#ffcc00',true);flash('#ffcc00',0.3);}
+    }
+    if(t>80&&Math.random()<0.04){flash('#ffff00',0.08);playTone(30+Math.random()*50,0.08,'square',0.015);}
     sAnim.targetArmL=0;sAnim.targetArmR=0;
-    if(t>=150){simonPhase=2;simonTimer=0;simonText='';simonTextIdx=0;simonTextTimer=0;}
+    if(t>=180){simonPhase=2;simonTimer=0;simonText='';simonTextIdx=0;simonTextTimer=0;}
   }
 
   // ─── PHASE 2: Speaking ───
@@ -1139,6 +1242,32 @@ function drawSimon(){
   X.globalAlpha=simonAlpha;
   X.save();X.translate(sx,sy);
 
+  // ─── PORTAL (phase 1 only) ───
+  if(simonPhase===1&&simonTimer<80){
+    const portalR=Math.min(50,simonTimer*1.2);
+    const portalAlpha=simonTimer<60?simonTimer/60:1-(simonTimer-60)/20;
+    X.globalAlpha=Math.max(0,portalAlpha);
+    X.save();X.translate(0,0);
+    // Swirling portal
+    for(let ring=3;ring>=0;ring--){
+      const r=portalR-ring*8;if(r<=0)continue;
+      const grad=X.createRadialGradient(0,0,r*0.2,0,0,r);
+      grad.addColorStop(0,`rgba(255,204,0,${0.3-ring*0.05})`);
+      grad.addColorStop(0.5,`rgba(180,100,255,${0.2-ring*0.04})`);
+      grad.addColorStop(1,'rgba(0,0,0,0)');
+      X.fillStyle=grad;X.beginPath();X.arc(0,0,r,0,Math.PI*2);X.fill();
+    }
+    // Spinning lines
+    X.strokeStyle='rgba(255,204,0,0.4)';X.lineWidth=2;
+    for(let i=0;i<6;i++){
+      const a=(Math.PI*2/6)*i+frameN*0.08;
+      X.beginPath();X.moveTo(Math.cos(a)*portalR*0.3,Math.sin(a)*portalR*0.3);
+      X.lineTo(Math.cos(a)*portalR,Math.sin(a)*portalR);X.stroke();
+    }
+    X.restore();
+    X.globalAlpha=simonAlpha;
+  }
+
   // ─── AURA (multi-layer) ───
   for(let i=4;i>=0;i--){
     const r=65+i*14+Math.sin(frameN*0.035+i*0.8)*5;
@@ -1345,6 +1474,30 @@ function drawBolt(bolt){
   X.shadowBlur=0;X.globalAlpha=1;
 }
 
+// ─── FRIENDLY UFO UPDATE ───
+function updateFriendlyUFOs(){
+  for(let i=friendlyUFOs.length-1;i>=0;i--){
+    const f=friendlyUFOs[i];f.life--;
+    if(f.life<=0){friendlyUFOs.splice(i,1);continue;}
+    // Move toward target
+    const a=ang(f.x,f.y,f.targetX,f.targetY);
+    f.x+=Math.cos(a)*2;f.y+=Math.sin(a)*2;
+    if(dst(f.x,f.y,f.targetX,f.targetY)<20){f.targetX=rnd(60,W-60);f.targetY=rnd(40,H*0.5);}
+    // Shoot at nearest enemy
+    f.shootCD--;
+    if(f.shootCD<=0){
+      f.shootCD=15;
+      let nearest=null,nd=Infinity;
+      for(const e of enemies){const d=dst(f.x,f.y,e.x,e.y);if(d<nd){nd=d;nearest=e;}}
+      for(const m of meteors){const d=dst(f.x,f.y,m.x,m.y);if(d<nd){nd=d;nearest=m;}}
+      if(nearest){
+        const sa=ang(f.x,f.y,nearest.x,nearest.y);
+        bullets.push({x:f.x,y:f.y,vx:Math.cos(sa)*8,vy:Math.sin(sa)*8,damage:bDmg*0.7,pierce:0,size:4});
+      }
+    }
+  }
+}
+
 // ─── SHOOTING ───
 function shoot(){
   const ty=BY-(BROWS*BS)/2-4;
@@ -1353,7 +1506,8 @@ function shoot(){
   for(let i=0;i<multi;i++){
     const sp=multi>1?(i-(multi-1)/2)*0.12:0;
     const ba=a+sp;
-    bullets.push({x:BX,y:ty,vx:Math.cos(ba)*bSpd,vy:Math.sin(ba)*bSpd,damage:bDmg,pierce:bPierce,size:4+bDmg*0.8});
+    const cu=CANNON_UPGRADES[cannonLevel-1];
+    bullets.push({x:BX,y:ty,vx:Math.cos(ba)*bSpd,vy:Math.sin(ba)*bSpd,damage:bDmg*cu.dmgMul,pierce:bPierce,size:4+bDmg*0.8});
   }
 }
 function useBomb(){
@@ -1398,6 +1552,9 @@ function killEnemy(i){
     }
   }
   if(Math.random()<0.1+e.tier*0.06)spawnPowerup(e.x,e.y);
+  // Drop Spaze-Money coins
+  const coinChance=0.3+e.tier*0.05;
+  if(Math.random()<coinChance)spawnCoin(e.x+rnd(-10,10),e.y+rnd(-10,10),Math.max(1,Math.floor(e.points/20)));
   enemies.splice(i,1);
   // Secret wave 11 unlock: beat wave 10 with >60 blocks alive
   // Wave 11 always unlocks after wave 10
@@ -1467,7 +1624,27 @@ function update(){
   }
 
   // Simon sequence runs independently
-  if(simonActive){updateSimon();return;}
+  if(simonActive){
+    updateSimon();
+    // Simon reflects player bullets back at base
+    if(simonPhase>=3){
+      const sy2=simonY+sAnim.hover;
+      for(let i=bullets.length-1;i>=0;i--){
+        const b=bullets[i];
+        if(dst(b.x,b.y,simonX,sy2)<60){
+          // Reflect: turn into enemy bullet aimed at base
+          eBullets.push({x:b.x,y:b.y,vx:-b.vx*0.8,vy:-b.vy*0.8+1,size:b.size,color:'#ffcc00'});
+          spawnP(b.x,b.y,'#ffcc00',4,3);
+          bullets.splice(i,1);
+        }
+      }
+    }
+    // Friendly UFOs still work during Simon
+    updateFriendlyUFOs();
+    if(micCooldown>0)micCooldown--;
+    if(checkMic())spawnFriendlyUFO();
+    return;
+  }
 
   if(shootCD>0)shootCD--;if(bombCD>0)bombCD--;
   if(mouseDown&&shootCD<=0){shoot();shootCD=shootRate;}
@@ -1485,6 +1662,8 @@ function update(){
     for(let j=enemies.length-1;j>=0;j--){
       const e=enemies[j];
       if(dst(b.x,b.y,e.x,e.y)<e.size/2+b.size/2){
+        // Bomb-only boss: bullets bounce off
+        if(e.bombOnly){spawnP(b.x,b.y,'#ff8800',3,2);addFT(b.x,b.y-10,'BOMB ONLY!','#ff8800');hit=true;break;}
         if(e.shieldHP>0){e.shieldHP-=b.damage;if(e.shieldHP<0){e.hp+=e.shieldHP;e.shieldHP=0;}spawnP(b.x,b.y,'#88ccff',3,2);}
         else e.hp-=b.damage;
         e.flash=6;spawnP(b.x,b.y,'#6f6',3,3);sfxHit();
@@ -1655,6 +1834,42 @@ function update(){
     }
   }
 
+  // Thief steal logic (inside enemy loop already handles movement, this handles steal)
+  for(const e of enemies){
+    if(e.isThief&&spazeMoney>0){
+      e.stealCD--;
+      if(e.stealCD<=0){
+        e.stealCD=90;
+        const{block:blk,dist:bd}=closestBlk(e.x,e.y);
+        if(blk&&bd<e.size+BS+20){
+          const stolen=Math.min(spazeMoney,e.stealAmount);
+          spazeMoney-=stolen;
+          addFT(e.x,e.y-15,`-${stolen}$`,'#ff4444');
+          spawnP(e.x,e.y,'#ffdd00',4,3);
+        }
+      }
+    }
+  }
+
+  // Spawn coins from kills (in killEnemy, add coin drops)
+  // Spawn bomb-only boss occasionally in waves 8+
+  if(wave>=8&&frameN%1200===0&&!enemies.some(e=>e.bombOnly)&&Math.random()<0.3)spawnBombBoss(rnd(80,W-80),-50);
+  // Spawn thieves in waves 6+
+  if(wave>=6&&frameN%600===0&&Math.random()<0.2)spawnThief(rnd(0,W),-20);
+  // Insane powerups in waves 12+
+  if(wave>=12&&frameN%800===0&&Math.random()<0.2){
+    const pu=INSANE_PU[rndI(0,INSANE_PU.length-1)];
+    powerups.push({x:rnd(60,W-60),y:-20,type:pu,size:20,life:500,vy:-1,bobT:rnd(0,6)});
+  }
+
+  // Friendly UFO updates
+  updateFriendlyUFOs();
+  // Mic check for friendly UFO spawn
+  if(micCooldown>0)micCooldown--;
+  if(state==='playing'&&checkMic())spawnFriendlyUFO();
+  // Auto-upgrade cannon prompt (press U)
+  // Coin drops from enemy kills handled in killEnemy
+
   // Powerups
   for(let i=powerups.length-1;i>=0;i--){
     const p=powerups[i];p.vy=Math.min(p.vy+0.04,1.2);p.y+=p.vy;p.bobT+=0.08;p.life--;
@@ -1747,7 +1962,7 @@ function draw(){
   if(aliveN>0){
     const ty=BY-(BROWS*BS)/2-4;const a=ang(BX,ty,mouseX,mouseY);
     X.save();X.translate(BX,ty);X.rotate(a);
-    X.fillStyle='#66aaff';X.fillRect(0,-3,22,6);X.fillStyle='#88ccff';X.fillRect(18,-5,8,10);
+    const cc=CANNON_UPGRADES[cannonLevel-1].color;X.fillStyle=cc;X.fillRect(0,-3,22,6);X.fillStyle='#fff';X.globalAlpha=0.3;X.fillRect(0,-3,22,2);X.globalAlpha=1;X.fillStyle=cc;X.fillRect(18,-5,8,10);
     X.restore();
   }
 
@@ -1817,6 +2032,16 @@ function draw(){
     // Rain
     X.strokeStyle='rgba(150,180,255,0.15)';X.lineWidth=1;
     for(let i=0;i<15;i++){const rx=rnd(0,W),ry=rnd(0,H);X.beginPath();X.moveTo(rx,ry);X.lineTo(rx-2,ry+12);X.stroke();}
+  }
+
+  // Friendly UFOs
+  for(const f of friendlyUFOs){
+    X.save();X.translate(f.x,f.y);
+    X.fillStyle='#44ffaa';X.shadowColor='#44ffaa';X.shadowBlur=10;
+    X.beginPath();X.ellipse(0,0,18,7,0,0,Math.PI*2);X.fill();
+    X.fillStyle='#88ffcc';X.beginPath();X.ellipse(0,-5,9,8,0,Math.PI,0);X.fill();
+    X.fillStyle='#fff';X.font='7px monospace';X.textAlign='center';X.fillText('ALLY',0,-16);
+    X.shadowBlur=0;X.textAlign='start';X.restore();
   }
 
   // Enemies
@@ -1995,6 +2220,12 @@ function drawEnemy(e){
 
   // Body
   if(e.flash>0)X.fillStyle='#fff';
+  else if(e.isThief){
+    X.fillStyle='#ffdd00';X.shadowColor='#ffdd00';X.shadowBlur=6;
+  }
+  else if(e.bombOnly){
+    X.fillStyle='#ff8800';X.shadowColor='#ff8800';X.shadowBlur=8;
+  }
   else if(e.type==='cosmic'&&e.cosmicColor){
     X.fillStyle=e.cosmicColor;
     // Cosmic aura
@@ -2052,10 +2283,15 @@ function drawEnemy(e){
     X.fillRect(-bw/2,-s/2-14,bw*(e.hp/e.maxHP),bh);
     if(e.shieldHP>0){X.fillStyle='#48f';X.fillRect(-bw/2,-s/2-18,bw*(e.shieldHP/e.maxShieldHP),2);}
   }
-  // Cosmic boss name
+  // Labels
   if(e.type==='cosmic'&&e.cosmicName){
     X.fillStyle=e.cosmicColor;X.font='bold 10px "Segoe UI"';X.textAlign='center';
     X.fillText(e.cosmicName,0,-s/2-22);
+  }
+  if(e.isThief){X.fillStyle='#ffdd00';X.font='bold 8px "Segoe UI"';X.textAlign='center';X.fillText('THIEF',0,-s/2-10);}
+  if(e.bombOnly){X.fillStyle='#ff8800';X.font='bold 9px "Segoe UI"';X.textAlign='center';X.fillText('BOMB ONLY',0,-s/2-22);
+    // Shield visual
+    X.strokeStyle='rgba(255,136,0,0.4)';X.lineWidth=2;X.beginPath();X.arc(0,0,s/2+5,0,Math.PI*2);X.stroke();
   }
 
   X.textAlign='start';X.globalAlpha=1;
@@ -2142,10 +2378,12 @@ function drawHUD(){
   // Right
   X.textAlign='right';
   X.fillStyle='#ff0';X.font='13px "Segoe UI"';X.fillText(`Bombs: ${bombN} [SPACE]`,W-10,20);
+  X.fillStyle='#ffdd00';X.fillText(`$${spazeMoney} [U=upgrade]`,W-10,36);
   X.fillStyle='#777';X.font='10px monospace';
-  X.fillText(`DMG:${bDmg.toFixed(1)} RATE:${shootRate} MULTI:${multi} PIERCE:${bPierce}`,W-10,36);
-  const te=enemies.length+waveELeft;
-  if(te>0){X.fillStyle='#e94560';X.font='12px "Segoe UI"';X.fillText(`Enemies: ${te}`,W-10,52);}
+  X.fillText(`${CANNON_UPGRADES[cannonLevel-1].name} | DMG:${bDmg.toFixed(1)} RATE:${shootRate} MULTI:${multi}`,W-10,50);
+  const te=enemies.length+waveELeft+meteors.length;
+  if(te>0){X.fillStyle='#e94560';X.font='12px "Segoe UI"';X.fillText(`Enemies: ${te}`,W-10,64);}
+  if(micActive){X.fillStyle=micCooldown>0?'#555':'#44ffaa';X.font='10px "Segoe UI"';X.fillText(micCooldown>0?'MIC: cooldown':'MIC: speak for ally',W-10,78);}
   X.textAlign='start';
 }
 
