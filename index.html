@@ -1040,25 +1040,41 @@ function updateSimon(){
     }
   }
 
-  // ─── PHASE 5: THE FINAL BOLT ───
+  // ─── PHASE 5: THE FINAL BOLT (Level UP style — massive sky-to-ground strike) ───
   if(simonPhase===5){
     if(t===1){
-      sfxThunder();sfxThunder();
-      flash('#ffffff',1.0);screenFlash.decay=0.005;shakeT=60;
-      lightning=generateLightning(simonX,simonY+50,BX,BY);
+      sfxThunder();sfxThunder();sfxExplosion();
+      flash('#ffffff',1.0);screenFlash.decay=0.004;shakeT=70;
+      // MASSIVE bolt from the very top of the sky to the base — like the video
+      lightning=genBolt(simonX,0,BX,BY,80); // starts from top of screen, not from Simon
+      // Also generate secondary bolts for extra width
+      simonBolts.push(genBolt(simonX-30,-10,BX-20,BY,60));
+      simonBolts.push(genBolt(simonX+30,-10,BX+20,BY,60));
+      simonBolts.push(genBolt(simonX,-10,BX,BY-10,70));
       // Annihilate every block
       for(const b of baseBlocks){if(b.alive){b.alive=false;aliveN--;spawnP(b.x,b.y,'#ffff44',2,5);}}
       aliveN=0;startCamFloat();
-      for(let i=0;i<150;i++){
-        particles.push({x:BX+rnd(-55,55),y:BY+rnd(-55,55),
-          vx:(Math.random()-.5)*16,vy:(Math.random()-.5)*16-3,
-          life:60+Math.random()*60,
-          color:['#ffff00','#ffaa00','#ffffff','#ffcc44','#ff8800'][rndI(0,4)],
-          size:2+Math.random()*7});
+      // Massive explosion — more particles than before
+      for(let i=0;i<200;i++){
+        particles.push({x:BX+rnd(-60,60),y:BY+rnd(-60,60),
+          vx:(Math.random()-.5)*18,vy:(Math.random()-.5)*18-4,
+          life:70+Math.random()*70,
+          color:['#ffff00','#ffaa00','#ffffff','#ffcc44','#ff8800','#ffffcc'][rndI(0,5)],
+          size:2+Math.random()*8});
       }
+      // Ground impact shockwave
+      bossFX.push({type:'shockwave',x:BX,y:BY,radius:0,maxRadius:200,life:40,color:'#ffffff'});
     }
-    if(t>1&&t<60&&t%8===0)lightning=generateLightning(simonX,simonY+50,BX,BY);
-    if(t>=90){lightning=null;simonPhase=6;simonTimer=0;sAnim.targetArmL=0;sAnim.targetArmR=0;sAnim.bodyGlow=0;}
+    // Lightning flickers violently — multiple re-generations like the video
+    if(t>1&&t<50&&t%4===0){
+      lightning=genBolt(simonX+rnd(-20,20),rndI(-10,10),BX+rnd(-15,15),BY,70);
+    }
+    // Brief total darkness after bolt fades (like the video — Mario death screen)
+    if(t>=55&&t<70){
+      // Bolt fading
+      if(t===55){lightning=null;simonBolts=[];}
+    }
+    if(t>=100){lightning=null;simonPhase=6;simonTimer=0;sAnim.targetArmL=0;sAnim.targetArmR=0;sAnim.bodyGlow=0;}
   }
 
   // ─── PHASE 6: Aftermath ───
@@ -1572,10 +1588,42 @@ function drawSimon(){
   if(!simonActive)return;
   const sx=simonX,sy=simonY+sAnim.hover;
 
-  // Progressive darkness
+  // Progressive darkness + storm clouds (inspired by Level UP video at 6:32)
   if(simonPhase>=2){
-    const dk=simonPhase<=2?Math.min(0.4,simonTimer*0.0004):simonPhase<=4?0.45:0.55;
+    const dk=simonPhase<=2?Math.min(0.4,simonTimer*0.0004):simonPhase<=4?0.5:0.65;
     X.fillStyle=`rgba(0,0,0,${dk})`;X.fillRect(0,0,W,H);
+
+    // Storm clouds — dark swirling masses across the top half of screen
+    if(simonPhase>=3){
+      const cloudIntensity=simonPhase>=5?0.35:simonPhase>=4?0.25:0.15;
+      for(let i=0;i<6;i++){
+        const cx=W*0.1+i*(W*0.15)+Math.sin(frameN*0.008+i*1.7)*40;
+        const cy=60+Math.sin(frameN*0.01+i*2.3)*30+i*15;
+        const cr=80+Math.sin(frameN*0.006+i)*25;
+        const cgrad=X.createRadialGradient(cx,cy,cr*0.2,cx,cy,cr);
+        cgrad.addColorStop(0,`rgba(40,35,50,${cloudIntensity})`);
+        cgrad.addColorStop(0.5,`rgba(30,28,40,${cloudIntensity*0.6})`);
+        cgrad.addColorStop(1,'rgba(20,18,30,0)');
+        X.fillStyle=cgrad;X.beginPath();X.arc(cx,cy,cr,0,Math.PI*2);X.fill();
+      }
+      // Cloud lightning flickers in background
+      if(simonPhase>=4&&Math.random()<0.06){
+        const fx=rnd(50,W-50),fy=rnd(20,120);
+        X.fillStyle=`rgba(200,180,255,${rnd(0.05,0.15)})`;
+        X.fillRect(fx-40,fy-2,80,4);
+        X.fillRect(fx-2,fy-30,4,60);
+      }
+    }
+
+    // Phase 5: total dark storm — almost black except for the bolt
+    if(simonPhase===5&&simonTimer>=1&&simonTimer<20){
+      X.fillStyle=`rgba(0,0,0,${0.7-simonTimer*0.03})`;X.fillRect(0,0,W,H);
+    }
+    // Phase 5 aftermath: brief total darkness (like the video)
+    if(simonPhase===5&&simonTimer>=60&&simonTimer<75){
+      const blackout=Math.min(1,(simonTimer-60)/5);
+      X.fillStyle=`rgba(0,0,0,${blackout*0.9})`;X.fillRect(0,0,W,H);
+    }
   }
 
   // Draw active lightning bolts
@@ -2524,7 +2572,16 @@ function drawBase(){
 function startCamFloat(){
   if(!camReady||!camVideo)return;
   camFloating=true;
-  camFloat={x:BX,y:BY,vx:rnd(-1.5,1.5),vy:rnd(-2,-0.5),rot:0,vr:rnd(-0.02,0.02),scale:1,alpha:1};
+  // If Simon is active, tumble rapidly like Mario in the Level UP video
+  const simonStrike=simonActive&&simonPhase>=5;
+  camFloat={x:BX,y:BY,
+    vx:simonStrike?rnd(-3,3):rnd(-1.5,1.5),
+    vy:simonStrike?rnd(-6,-3):rnd(-2,-0.5),
+    rot:0,
+    vr:simonStrike?rnd(-0.15,0.15):rnd(-0.02,0.02), // rapid tumble spin
+    scale:1,alpha:1,
+    tumbling:simonStrike // flag for extra tumble effects
+  };
 }
 
 function updateCamFloat(){
@@ -2549,9 +2606,26 @@ function drawCamFloat(){
   X.rotate(f.rot);
   X.globalAlpha=f.alpha;
 
+  // Tumbling afterimages (like Mario spinning in the video)
+  if(f.tumbling){
+    for(let i=1;i<=3;i++){
+      X.globalAlpha=f.alpha*(0.12-i*0.03);
+      X.save();X.rotate(-f.vr*i*4);
+      X.fillStyle='rgba(100,150,255,0.15)';
+      X.fillRect(-sz/2-2,-sz/2-2,sz+4,sz+4);
+      X.restore();
+    }
+    X.globalAlpha=f.alpha;
+    // Lightning scorch marks around tumbling cam
+    if(Math.random()<0.3){
+      X.strokeStyle=`rgba(255,255,100,${rnd(0.1,0.4)})`;X.lineWidth=1;
+      X.beginPath();X.moveTo(rnd(-sz,sz),rnd(-sz,sz));X.lineTo(rnd(-sz,sz),rnd(-sz,sz));X.stroke();
+    }
+  }
+
   // Glow behind
-  X.shadowColor='#4488ff';X.shadowBlur=15;
-  X.fillStyle='rgba(30,60,180,0.3)';
+  X.shadowColor=f.tumbling?'#ffcc00':'#4488ff';X.shadowBlur=f.tumbling?25:15;
+  X.fillStyle=f.tumbling?'rgba(80,60,20,0.3)':'rgba(30,60,180,0.3)';
   X.fillRect(-sz/2-3,-sz/2-3,sz+6,sz+6);
   X.shadowBlur=0;
 
@@ -2561,15 +2635,19 @@ function drawCamFloat(){
   X.drawImage(camVideo,-sz/2,-sz/2,sz,sz);
   X.restore();
 
-  // Blue border
-  X.strokeStyle='#4488ff';X.lineWidth=2;
+  // Border (scorched yellow if tumbling)
+  X.strokeStyle=f.tumbling?'#ffaa00':'#4488ff';X.lineWidth=f.tumbling?3:2;
   X.strokeRect(-sz/2,-sz/2,sz,sz);
 
-  // Pixel breakup effect — small blocks detach
-  if(Math.random()<0.15){
+  // Pixel breakup — faster when tumbling
+  const breakRate=f.tumbling?0.5:0.15;
+  if(Math.random()<breakRate){
     particles.push({x:f.x+rnd(-sz/2,sz/2),y:f.y+rnd(-sz/2,sz/2),
-      vx:rnd(-1,1),vy:rnd(-1,1),life:30+Math.random()*20,
-      color:'#4488ff',size:2+Math.random()*3});
+      vx:rnd(-1,1)+(f.tumbling?rnd(-2,2):0),
+      vy:rnd(-1,1)+(f.tumbling?rnd(-2,2):0),
+      life:30+Math.random()*20,
+      color:f.tumbling?['#ffcc00','#ff8800','#ffffff'][rndI(0,2)]:'#4488ff',
+      size:2+Math.random()*3});
   }
 
   // Small stars around floating face
