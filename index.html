@@ -1999,7 +1999,7 @@ function draw(){
     {name:'Void Realm',bg:'#040404',planet:'#222222',ring:false}, // 15-16
     {name:'Simon\'s Domain',bg:'#0a0804',planet:'#ffcc00',ring:true} // 17+
   ];
-  const planetIdx=Math.min(PLANETS.length-1,Math.floor((wave-1)/2));
+  const planetIdx=Math.max(0,Math.min(PLANETS.length-1,Math.floor((wave-1)/2)));
   const pl=PLANETS[planetIdx];
   X.fillStyle=pl.bg;X.fillRect(0,0,W,H);
   // Draw planet in background (top-right corner, partially off-screen)
@@ -2455,7 +2455,7 @@ function drawHUD(){
   X.fillStyle=wave===18?'#ff00ff':'#4488ff';X.font='bold 15px "Segoe UI"';
   X.fillText(wave===18?'SECRET WAVE 18':`Wave ${wave}/${TOTAL_WAVES}`,10,20);
   // Planet name
-  const plHud=PLANETS[Math.min(PLANETS.length-1,Math.floor((wave-1)/2))];
+  const plHud=PLANETS[Math.max(0,Math.min(PLANETS.length-1,Math.floor((wave-1)/2)))];
   X.fillStyle='#666';X.font='10px "Segoe UI"';X.fillText(plHud.name,10,90);
   X.fillStyle='#eee';X.font='bold 15px "Segoe UI"';X.fillText(`Score: ${score}`,10,38);
   X.fillStyle='#aaa';X.font='12px "Segoe UI"';X.fillText(`Best: ${highScore}`,10,54);
