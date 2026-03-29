@@ -91,7 +91,7 @@ function startMusic(){
 function stopMusic(){if(musicInterval){clearInterval(musicInterval);musicInterval=null;}}
 
 // ─── CONSTANTS ───
-const BX=W/2,BY=H-70,BS=7,BCOLS=9,BROWS=9,TOTAL_WAVES=17;
+const BX=W/2,BY=H-70,BS=7,BCOLS=9,BROWS=9,TOTAL_WAVES=67;
 const PLANETS=[
   {name:'Earth',bg:'#080818',planet:'#2244aa',ring:false},      // 1-2
   {name:'Mars',bg:'#0c0808',planet:'#aa4422',ring:false},       // 3-4
@@ -101,7 +101,32 @@ const PLANETS=[
   {name:'Pluto',bg:'#060608',planet:'#888899',ring:false},      // 11-12
   {name:'Andromeda',bg:'#0a0610',planet:'#8844cc',ring:true},   // 13-14
   {name:'Void Realm',bg:'#040404',planet:'#222222',ring:false}, // 15-16
-  {name:'Simon\'s Domain',bg:'#0a0804',planet:'#ffcc00',ring:true} // 17+
+  {name:'Nebula Prime',bg:'#080412',planet:'#cc44ff',ring:true},    // 17-18
+  {name:'Crystal Moon',bg:'#060a10',planet:'#88ccee',ring:false},   // 19-20
+  {name:'Iron Planet',bg:'#0a0808',planet:'#886644',ring:false},    // 21-22
+  {name:'Toxic World',bg:'#040a04',planet:'#44cc22',ring:false},    // 23-24
+  {name:'Ice Giant',bg:'#040810',planet:'#aaddff',ring:true},       // 25-26
+  {name:'Lava Core',bg:'#0c0404',planet:'#ff4422',ring:false},      // 27-28
+  {name:'Shadow Realm',bg:'#030303',planet:'#444444',ring:false},    // 29-30
+  {name:'Binary Stars',bg:'#0a0808',planet:'#ffdd44',ring:false},   // 31-32
+  {name:'Quantum Zone',bg:'#060610',planet:'#4488ff',ring:true},    // 33-34
+  {name:'Dark Matter',bg:'#020204',planet:'#222244',ring:false},     // 35-36
+  {name:'Supernova',bg:'#0c0604',planet:'#ff8844',ring:true},       // 37-38
+  {name:'Cosmic Web',bg:'#040408',planet:'#6644cc',ring:true},      // 39-40
+  {name:'Wormhole',bg:'#050305',planet:'#884488',ring:true},         // 41-42
+  {name:'Antimatter',bg:'#020208',planet:'#4444aa',ring:false},      // 43-44
+  {name:'Neutron Star',bg:'#080808',planet:'#ddddff',ring:false},    // 45-46
+  {name:'Galactic Core',bg:'#0a0604',planet:'#ffaa22',ring:true},   // 47-48
+  {name:'Event Horizon',bg:'#010102',planet:'#111133',ring:true},    // 49-50
+  {name:'Celestial Gate',bg:'#060408',planet:'#8888ff',ring:true},   // 51-52
+  {name:'Oblivion',bg:'#020202',planet:'#333333',ring:false},        // 53-54
+  {name:'Eternal Storm',bg:'#080610',planet:'#6688cc',ring:true},    // 55-56
+  {name:'Genesis Point',bg:'#080806',planet:'#ccaa44',ring:false},   // 57-58
+  {name:'The Beyond',bg:'#040306',planet:'#664488',ring:true},       // 59-60
+  {name:'Final Frontier',bg:'#060406',planet:'#aa66cc',ring:true},   // 61-62
+  {name:'Edge of Reality',bg:'#030204',planet:'#553366',ring:true},  // 63-64
+  {name:'The Void',bg:'#010101',planet:'#222222',ring:false},        // 65-66
+  {name:'Simon\'s Domain',bg:'#0a0804',planet:'#ffcc00',ring:true}   // 67+
 ];
 
 // ─── STATE ───
@@ -222,19 +247,20 @@ function nextWave(){
     addFT(BX,BY-50,'BASE RESTORED','#44ff88');
     sfxPowerup();
   }
-  if(wave>18){
+  if(wave>68){
     // Beat wave 18 (Glitch Overlord) - true ending
     gameWon=true;state='won';
     if(score>highScore){highScore=score;localStorage.setItem('bfH3',highScore);}
     stopMusic();sfxVictoryFanfare();showWin();return;
   }
-  waveTimer=wave===18?150:180;
+  waveTimer=wave===68?150:180;
   // Wave 18 = Glitch Overlord only; waves 11-17 = boss + meteors; 1-10 = original
-  waveELeft=wave===18?1:wave>=11?8+wave:Math.min(5+wave*3,50);
+  waveELeft=wave===68?1:wave>=11?Math.min(8+Math.floor(wave*1.5),80):Math.min(5+wave*3,50);
   sfxWaveStart();
   // Wave labels
   const BOSS_NAMES={11:'LUNAR MOON',12:'FELLEN SUN',13:'INFECTED EARTH',14:'ALIEN KING',15:'THE LORD OF THE GALAXY',16:'BLOOD SPACE',17:'LIVING METEOR'};
   const BOSS_COLORS={11:'#aaccff',12:'#ffaa00',13:'#44aa22',14:'#aa44ff',15:'#4488ff',16:'#cc0000',17:'#ff6633'};
+  const isBossW=(wave>=11&&wave<=17)||(wave>17&&wave<=67&&wave%7===0);
   if(wave<=TOTAL_WAVES)addFT(W/2,H/2-50,`WAVE ${wave}/${TOTAL_WAVES}`,'#4488ff',true);
   if(wave===5)addFT(W/2,H/2,'TIER 3 BOSS!','#e94560',true);
   if(wave===8)addFT(W/2,H/2,'TIER 4 BOSS!','#ff2222',true);
@@ -243,7 +269,12 @@ function nextWave(){
     addFT(W/2,H/2,BOSS_NAMES[wave]+'!',BOSS_COLORS[wave],true);
     addFT(W/2,H/2+30,'+ METEOR STORM','#ff8844',true);
   }
-  if(wave===18){
+  if(isBossW&&wave>17&&wave<=67){
+    const bIdx=11+((wave-18)%7);
+    addFT(W/2,H/2,BOSS_NAMES[bIdx]+' RETURNS!',(BOSS_COLORS[bIdx]||'#ff4444'),true);
+    addFT(W/2,H/2+30,'STRONGER THAN BEFORE','#ff8844',true);
+  }
+  if(wave===68){
     addFT(W/2,H/2-60,'SECRET WAVE 18','#ff00ff',true);
     addFT(W/2,H/2-20,'THE CORRUPTED GLITCH OVERLORD','#ff0044',true);
     flash('#ff00ff',0.6);sfxGlitch();sfxBossRoar();
@@ -254,24 +285,32 @@ function spawnWaveEnemy(){
   let sx,sy;const side=rndI(0,3);
   if(side===0){sx=rnd(0,W);sy=-50;}else if(side===1){sx=W+50;sy=rnd(0,H*0.5);}
   else if(side===2){sx=rnd(0,W);sy=-50;}else{sx=-50;sy=rnd(0,H*0.5);}
-  if(wave===18){spawnGlitchOverlord(W/2,-80);return;}
-  // Waves 11-17: spawn boss on last enemy, rest are meteors + regular enemies
-  if(wave>=11&&wave<=17&&waveELeft===0){spawnCosmicBoss(sx,sy,wave);return;}
-  if(wave>=11&&wave<=17){
-    // Varied spawns: meteors, aliens, UFOs
+  if(wave===68){spawnGlitchOverlord(W/2,-80);return;}
+  // Cosmic bosses: waves 11-17 original, then every 7 waves through 67
+  const isBossWave=(wave>=11&&wave<=17)||(wave>17&&wave<=67&&wave%7===0);
+  if(isBossWave&&waveELeft===0){
+    const bossIdx=wave<=17?wave:11+((wave-18)%7);
+    spawnCosmicBoss(sx,sy,bossIdx);return;
+  }
+  // Waves 11-67: varied spawns with scaling intensity
+  if(wave>=11&&wave<=67){
     const r=Math.random();
-    if(r<0.4){spawnMeteor(sx,sy);return;}
-    if(r<0.55){spawnAlien(sx,sy);return;}
-    if(r<0.65&&ufos.length<2){spawnUFO();return;}
+    const intensity=Math.min(1,wave/60);
+    if(r<0.3+intensity*0.1){spawnMeteor(sx,sy);if(wave>=30&&Math.random()<0.3)spawnMeteor(sx+rnd(-60,60),sy);return;}
+    if(r<0.45+intensity*0.05){spawnAlien(sx,sy);if(wave>=40)spawnAlien(sx+rnd(-40,40),sy);return;}
+    if(r<0.55&&ufos.length<Math.min(5,1+Math.floor(wave/15))){spawnUFO();return;}
+    if(wave>=30&&Math.random()<0.08){spawnGiantMeteor(sx,sy);return;}
   }
   // Storms trigger occasionally in waves 8+
   if(wave>=8&&!stormActive&&Math.random()<0.003)triggerStorm();
   if(wave===10&&waveELeft===0){spawnEnemy(sx,sy,5);return;}
   if(wave===8&&waveELeft===0){spawnEnemy(sx,sy,4);return;}
   if(wave===5&&waveELeft===0){spawnEnemy(sx,sy,3);return;}
-  // Scale enemy tiers with wave, capped by available tiers (0-19)
-  const maxTier=Math.min(19,Math.floor(wave*0.8));
-  if(wave>=12&&Math.random()<0.08)spawnEnemy(sx,sy,Math.min(maxTier,rndI(3,Math.min(6,maxTier))));
+  // Scale enemy tiers with wave, up to tier 49 in late waves
+  const maxTier=Math.min(49,Math.floor(wave*0.7));
+  if(wave>=40&&Math.random()<0.05)spawnEnemy(sx,sy,Math.min(maxTier,rndI(8,Math.min(15,maxTier))));
+  else if(wave>=20&&Math.random()<0.08)spawnEnemy(sx,sy,Math.min(maxTier,rndI(4,Math.min(10,maxTier))));
+  else if(wave>=12&&Math.random()<0.1)spawnEnemy(sx,sy,Math.min(maxTier,rndI(3,Math.min(6,maxTier))));
   else if(wave>=7&&Math.random()<0.12)spawnEnemy(sx,sy,rndI(1,Math.min(3,maxTier)));
   else if(wave>=4&&Math.random()<0.2)spawnEnemy(sx,sy,1);
   else spawnEnemy(sx,sy,0);
@@ -1906,7 +1945,7 @@ function shoot(){
 // ─── MERCY BUTTON — secret skip to Simon ───
 let mercyUsed=false;
 function useMercyButton(){
-  if(state!=='playing'||simonActive||orbMode||wave>=18)return;
+  if(state!=='playing'||simonActive||orbMode||wave>=68)return;
   mercyUsed=true;
   // Clear everything
   enemies=[];meteors=[];ufos=[];aliens=[];eBullets=[];bossFX=[];powerups=[];
@@ -1914,7 +1953,7 @@ function useMercyButton(){
   // Restore base fully
   for(const b of baseBlocks)b.alive=true;aliveN=baseBlocks.length;
   // Skip straight to wave 18 (Simon)
-  wave=17; // nextWave() will increment to 18
+  wave=67; // nextWave() will increment to 68
   flash('#ffcc00',0.6);shakeT=15;
   sfxGlitch();sfxTeleport();
   addFT(W/2,H/2-30,'MERCY BUTTON ACTIVATED','#ffcc00',true);
@@ -2331,11 +2370,11 @@ function updatePFX(){
 
 function showDeath(){
   stopMusic();ui.classList.remove('hidden');
-  ui.innerHTML=`<h2>BASE DESTROYED</h2><p style="font-size:22px;color:#fff">Score: ${score}</p><p>Survived to Wave ${wave}${wave>17?' (SECRET)':''}</p><p>High Score: ${highScore}</p><p class="start-hint">Click to retry</p>`;
+  ui.innerHTML=`<h2>BASE DESTROYED</h2><p style="font-size:22px;color:#fff">Score: ${score}</p><p>Survived to Wave ${wave}${wave>67?' (SECRET)':''}</p><p>High Score: ${highScore}</p><p class="start-hint">Click to retry</p>`;
 }
 function showWin(){
   ui.classList.remove('hidden');
-  const secret=wave>17;
+  const secret=wave>67;
   if(secret){
     // This shouldn't show anymore since Simon takes over, but just in case
     ui.innerHTML=`<h1 style="color:#ff88ff">TRUE VICTORY!</h1>
@@ -2842,8 +2881,8 @@ function drawHUD(){
   X.fillText(`BLOCKS ${aliveN}/${total}`,W/2,by+10);X.textAlign='start';
 
   // Left
-  X.fillStyle=wave===18?'#ff00ff':'#4488ff';X.font='bold 15px "Segoe UI"';
-  X.fillText(wave===18?'SECRET WAVE 18':`Wave ${wave}/${TOTAL_WAVES}`,10,20);
+  X.fillStyle=wave===68?'#ff00ff':'#4488ff';X.font='bold 15px "Segoe UI"';
+  X.fillText(wave===68?'SECRET WAVE 18':`Wave ${wave}/${TOTAL_WAVES}`,10,20);
   // Planet name
   const plHud=getPlanetForWave(wave);
   X.fillStyle='#666';X.font='10px "Segoe UI"';X.fillText(plHud.name,10,90);

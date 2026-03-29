@@ -103,7 +103,7 @@ test('Mercy Button skips to Simon wave', async ({ page }) => {
     return { waveBefore, waveAfter: wave, mercyUsed, enemyCount: enemies.length, aliveN };
   });
   expect(result.waveBefore).toBe(1);
-  expect(result.waveAfter).toBe(17); // set to 17, nextWave() will make it 18
+  expect(result.waveAfter).toBe(67); // set to 67, nextWave() will make it 68 (Simon)
   expect(result.mercyUsed).toBe(true);
   expect(result.enemyCount).toBe(0); // all enemies cleared
   expect(result.aliveN).toBe(81); // base fully restored
