@@ -163,7 +163,7 @@ C.addEventListener('mousemove',e=>{const r=C.getBoundingClientRect();mouseX=e.cl
 C.addEventListener('mousedown',()=>{mouseDown=true;resumeAudio();if(state!=='playing')startGame();});
 C.addEventListener('mouseup',()=>mouseDown=false);
 document.addEventListener('click',()=>{resumeAudio();if(state!=='playing')startGame();});
-document.addEventListener('keydown',e=>{if(e.key===' '){e.preventDefault();useBomb();}if(e.key==='u'||e.key==='U')tryUpgradeCannon();if(e.key==='Enter'&&state!=='playing')startGame();});
+document.addEventListener('keydown',e=>{if(e.key===' '){e.preventDefault();useBomb();}if(e.key==='u'||e.key==='U')tryUpgradeCannon();if(e.key==='m'||e.key==='M')useMercyButton();if(e.key==='Enter'&&state!=='playing')startGame();});
 C.addEventListener('touchstart',e=>{e.preventDefault();resumeAudio();const t=e.touches[0],r=C.getBoundingClientRect();mouseX=t.clientX-r.left;mouseY=t.clientY-r.top;mouseDown=true;if(state!=='playing')startGame();});
 C.addEventListener('touchmove',e=>{e.preventDefault();const t=e.touches[0],r=C.getBoundingClientRect();mouseX=t.clientX-r.left;mouseY=t.clientY-r.top;});
 C.addEventListener('touchend',()=>mouseDown=false);
@@ -202,7 +202,7 @@ function startGame(){
   state='playing';score=0;wave=0;waveTimer=100;gameWon=false;
   shootRate=12;bDmg=1;bSpd=10;bPierce=0;multi=1;bombN=3;
   bullets=[];enemies=[];powerups=[];particles=[];floatTexts=[];eBullets=[];bossFX=[];meteors=[];ufos=[];aliens=[];stormActive=false;stormTimer=0;
-  spazeMoney=0;cannonLevel=1;cannonSkin=0;friendlyUFOs=[];micCooldown=0;
+  spazeMoney=0;cannonLevel=1;cannonSkin=0;friendlyUFOs=[];micCooldown=0;mercyUsed=false;
   glitchBoss=null;glitchPhase=0;glitchClones=[];orbMode=false;orb=null;orbDeathAnim=0;orbPixels=[];secretUnlocked=false;
   simonActive=false;simonPending=false;simonPhase=0;simonTimer=0;lightning=null;
   camFloating=false;
@@ -1903,6 +1903,26 @@ function shoot(){
     bullets.push({x:BX,y:ty,vx:Math.cos(ba)*bSpd,vy:Math.sin(ba)*bSpd,damage:bDmg*cu.dmgMul,pierce:bPierce,size:4+bDmg*0.8});
   }
 }
+// ─── MERCY BUTTON — secret skip to Simon ───
+let mercyUsed=false;
+function useMercyButton(){
+  if(state!=='playing'||simonActive||orbMode||wave>=18)return;
+  mercyUsed=true;
+  // Clear everything
+  enemies=[];meteors=[];ufos=[];aliens=[];eBullets=[];bossFX=[];powerups=[];
+  waveELeft=0;waveTimer=0;
+  // Restore base fully
+  for(const b of baseBlocks)b.alive=true;aliveN=baseBlocks.length;
+  // Skip straight to wave 18 (Simon)
+  wave=17; // nextWave() will increment to 18
+  flash('#ffcc00',0.6);shakeT=15;
+  sfxGlitch();sfxTeleport();
+  addFT(W/2,H/2-30,'MERCY BUTTON ACTIVATED','#ffcc00',true);
+  addFT(W/2,H/2+10,'Teleporting to Simon...','#ffaa00',true);
+  // Brief delay then trigger Simon wave
+  setTimeout(()=>{if(state==='playing')nextWave();},1500);
+}
+
 function useBomb(){
   if(state!=='playing'||bombCD>0)return;
   // Infinite bombs while a bomb-only boss is alive
@@ -2855,6 +2875,8 @@ function drawHUD(){
   const te=enemies.length+waveELeft+meteors.length;
   if(te>0){X.fillStyle='#e94560';X.font='12px "Segoe UI"';X.fillText(`Enemies: ${te}`,W-10,64);}
   if(micActive){X.fillStyle=micCooldown>0?'#555':'#44ffaa';X.font='10px "Segoe UI"';X.fillText(micCooldown>0?'MIC: cooldown':'MIC: speak for ally',W-10,78);}
+  // Mercy Button hint
+  if(!mercyUsed&&!simonActive&&wave<18){X.fillStyle=`rgba(255,204,0,${0.4+Math.sin(frameN*0.06)*0.2})`;X.font='10px "Segoe UI"';X.fillText('[M] Mercy Button',W-10,92);}
   X.textAlign='start';
 }
 

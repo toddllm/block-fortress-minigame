@@ -90,3 +90,21 @@ test('base blocks regen between waves', async ({ page }) => {
   expect(result.before).toBe(71);
   expect(result.after).toBe(81);
 });
+
+test('Mercy Button skips to Simon wave', async ({ page }) => {
+  await page.goto('/');
+  await page.click('canvas#game');
+  const result = await page.evaluate(() => {
+    startGame();
+    // Verify we're on wave 1
+    const waveBefore = wave;
+    // Press Mercy Button
+    useMercyButton();
+    return { waveBefore, waveAfter: wave, mercyUsed, enemyCount: enemies.length, aliveN };
+  });
+  expect(result.waveBefore).toBe(1);
+  expect(result.waveAfter).toBe(17); // set to 17, nextWave() will make it 18
+  expect(result.mercyUsed).toBe(true);
+  expect(result.enemyCount).toBe(0); // all enemies cleared
+  expect(result.aliveN).toBe(81); // base fully restored
+});
