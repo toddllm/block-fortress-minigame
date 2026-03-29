@@ -92,6 +92,17 @@ function stopMusic(){if(musicInterval){clearInterval(musicInterval);musicInterva
 
 // ─── CONSTANTS ───
 const BX=W/2,BY=H-70,BS=7,BCOLS=9,BROWS=9,TOTAL_WAVES=17;
+const PLANETS=[
+  {name:'Earth',bg:'#080818',planet:'#2244aa',ring:false},      // 1-2
+  {name:'Mars',bg:'#0c0808',planet:'#aa4422',ring:false},       // 3-4
+  {name:'Jupiter',bg:'#0a0a10',planet:'#cc8844',ring:false},    // 5-6
+  {name:'Saturn',bg:'#08080c',planet:'#ccaa66',ring:true},      // 7-8
+  {name:'Neptune',bg:'#060812',planet:'#2266cc',ring:false},    // 9-10
+  {name:'Pluto',bg:'#060608',planet:'#888899',ring:false},      // 11-12
+  {name:'Andromeda',bg:'#0a0610',planet:'#8844cc',ring:true},   // 13-14
+  {name:'Void Realm',bg:'#040404',planet:'#222222',ring:false}, // 15-16
+  {name:'Simon\'s Domain',bg:'#0a0804',planet:'#ffcc00',ring:true} // 17+
+];
 
 // ─── STATE ───
 let state='menu',score=0,highScore=+(localStorage.getItem('bfH3')||0);
@@ -165,6 +176,10 @@ const rndI=(a,b)=>Math.floor(rnd(a,b+1));
 function spawnP(x,y,col,n,sp=5){for(let i=0;i<n;i++)particles.push({x,y,vx:(Math.random()-.5)*sp,vy:(Math.random()-.5)*sp,life:20+Math.random()*25,color:col,size:1.5+Math.random()*3});}
 function addFT(x,y,t,c='#fff',big=false){floatTexts.push({x,y,text:t,color:c,life:big?90:60,vy:-1.2,big});}
 function flash(col,a=0.5){screenFlash={color:col,alpha:a,decay:0.03};}
+function getPlanetForWave(currentWave){
+  const planetIdx=Math.max(0,Math.min(PLANETS.length-1,Math.floor((currentWave-1)/2)));
+  return PLANETS[planetIdx];
+}
 
 // ─── BASE ───
 function initBase(){
@@ -1988,19 +2003,7 @@ function draw(){
   if(shakeT>0)X.translate((Math.random()-.5)*shakeT*0.8,(Math.random()-.5)*shakeT*0.8);
 
   // BG — planet progression
-  const PLANETS=[
-    {name:'Earth',bg:'#080818',planet:'#2244aa',ring:false},      // 1-2
-    {name:'Mars',bg:'#0c0808',planet:'#aa4422',ring:false},       // 3-4
-    {name:'Jupiter',bg:'#0a0a10',planet:'#cc8844',ring:false},    // 5-6
-    {name:'Saturn',bg:'#08080c',planet:'#ccaa66',ring:true},      // 7-8
-    {name:'Neptune',bg:'#060812',planet:'#2266cc',ring:false},    // 9-10
-    {name:'Pluto',bg:'#060608',planet:'#888899',ring:false},      // 11-12
-    {name:'Andromeda',bg:'#0a0610',planet:'#8844cc',ring:true},   // 13-14
-    {name:'Void Realm',bg:'#040404',planet:'#222222',ring:false}, // 15-16
-    {name:'Simon\'s Domain',bg:'#0a0804',planet:'#ffcc00',ring:true} // 17+
-  ];
-  const planetIdx=Math.max(0,Math.min(PLANETS.length-1,Math.floor((wave-1)/2)));
-  const pl=PLANETS[planetIdx];
+  const pl=getPlanetForWave(wave);
   X.fillStyle=pl.bg;X.fillRect(0,0,W,H);
   // Draw planet in background (top-right corner, partially off-screen)
   if(state==='playing'){
@@ -2456,7 +2459,7 @@ function drawHUD(){
   X.fillStyle=wave===18?'#ff00ff':'#4488ff';X.font='bold 15px "Segoe UI"';
   X.fillText(wave===18?'SECRET WAVE 18':`Wave ${wave}/${TOTAL_WAVES}`,10,20);
   // Planet name
-  const plHud=PLANETS[Math.max(0,Math.min(PLANETS.length-1,Math.floor((wave-1)/2)))];
+  const plHud=getPlanetForWave(wave);
   X.fillStyle='#666';X.font='10px "Segoe UI"';X.fillText(plHud.name,10,90);
   X.fillStyle='#eee';X.font='bold 15px "Segoe UI"';X.fillText(`Score: ${score}`,10,38);
   X.fillStyle='#aaa';X.font='12px "Segoe UI"';X.fillText(`Best: ${highScore}`,10,54);
