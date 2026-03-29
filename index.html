@@ -24,7 +24,7 @@ canvas{border:2px solid #2244aa;border-radius:4px;box-shadow:0 0 40px rgba(34,68
   <p>Defend your base from waves of enemies</p>
   <p><span style="color:#6af">Mouse</span> aim &bull; Click/hold shoot &bull; <span style="color:#ff0">SPACE</span> bomb</p>
   <p><span style="color:#4f4">Green shots</span> collect <span style="color:#ff0">power-ups</span> &bull; Bosses <span style="color:#e94560">split</span></p>
-  <p style="color:#666;font-size:12px;margin-top:8px">Rumor has it there's something beyond Wave 10...</p>
+  <p style="color:#666;font-size:12px;margin-top:8px">17 waves + meteors + cosmic bosses... and something beyond</p>
   <p class="start-hint">Click to start</p>
 </div>
 <script>
@@ -91,7 +91,7 @@ function startMusic(){
 function stopMusic(){if(musicInterval){clearInterval(musicInterval);musicInterval=null;}}
 
 // ─── CONSTANTS ───
-const BX=W/2,BY=H-70,BS=7,BCOLS=9,BROWS=9,TOTAL_WAVES=10;
+const BX=W/2,BY=H-70,BS=7,BCOLS=9,BROWS=9,TOTAL_WAVES=17;
 
 // ─── STATE ───
 let state='menu',score=0,highScore=+(localStorage.getItem('bfH3')||0);
@@ -186,7 +186,7 @@ function repairBase(n){const dead=baseBlocks.filter(b=>!b.alive);for(let i=0;i<M
 function startGame(){
   state='playing';score=0;wave=0;waveTimer=100;gameWon=false;
   shootRate=12;bDmg=1;bSpd=10;bPierce=0;multi=1;bombN=3;
-  bullets=[];enemies=[];powerups=[];particles=[];floatTexts=[];eBullets=[];bossFX=[];
+  bullets=[];enemies=[];powerups=[];particles=[];floatTexts=[];eBullets=[];bossFX=[];meteors=[];
   glitchBoss=null;glitchPhase=0;glitchClones=[];orbMode=false;orb=null;orbDeathAnim=0;orbPixels=[];secretUnlocked=false;
   simonActive=false;simonPending=false;simonPhase=0;simonTimer=0;lightning=null;
   camFloating=false;
@@ -206,24 +206,31 @@ function nextWave(){
     addFT(BX,BY-50,'BASE RESTORED','#44ff88');
     sfxPowerup();
   }
-  if(wave>11){
-    // Beat wave 11 - true ending
+  if(wave>18){
+    // Beat wave 18 (Glitch Overlord) - true ending
     gameWon=true;state='won';
     if(score>highScore){highScore=score;localStorage.setItem('bfH3',highScore);}
     stopMusic();sfxVictoryFanfare();showWin();return;
   }
-  waveTimer=wave===11?150:180;
-  waveELeft=wave===11?1:Math.min(5+wave*3,50); // Wave 11: 1 enemy = the Overlord itself
+  waveTimer=wave===18?150:180;
+  // Wave 18 = Glitch Overlord only; waves 11-17 = boss + meteors; 1-10 = original
+  waveELeft=wave===18?1:wave>=11?8+wave:Math.min(5+wave*3,50);
   sfxWaveStart();
-  if(wave<=10)addFT(W/2,H/2-50,`WAVE ${wave}/10`,'#4488ff',true);
+  // Wave labels
+  const BOSS_NAMES={11:'LUNAR MOON',12:'FELLEN SUN',13:'INFECTED EARTH',14:'ALIEN KING',15:'THE LORD OF THE GALAXY',16:'BLOOD SPACE',17:'LIVING METEOR'};
+  const BOSS_COLORS={11:'#aaccff',12:'#ffaa00',13:'#44aa22',14:'#aa44ff',15:'#4488ff',16:'#cc0000',17:'#ff6633'};
+  if(wave<=TOTAL_WAVES)addFT(W/2,H/2-50,`WAVE ${wave}/${TOTAL_WAVES}`,'#4488ff',true);
   if(wave===5)addFT(W/2,H/2,'TIER 3 BOSS!','#e94560',true);
   if(wave===8)addFT(W/2,H/2,'TIER 4 BOSS!','#ff2222',true);
   if(wave===10)addFT(W/2,H/2,'TIER 5 MEGA BOSS!','#ff0000',true);
-  if(wave===11){
-    addFT(W/2,H/2-60,'SECRET WAVE 11','#ff00ff',true);
+  if(wave>=11&&wave<=17){
+    addFT(W/2,H/2,BOSS_NAMES[wave]+'!',BOSS_COLORS[wave],true);
+    addFT(W/2,H/2+30,'+ METEOR STORM','#ff8844',true);
+  }
+  if(wave===18){
+    addFT(W/2,H/2-60,'SECRET WAVE 18','#ff00ff',true);
     addFT(W/2,H/2-20,'THE CORRUPTED GLITCH OVERLORD','#ff0044',true);
     flash('#ff00ff',0.6);sfxGlitch();sfxBossRoar();
-    // Overlord spawns through normal wave spawner (waveELeft=1)
   }
 }
 function spawnWaveEnemy(){
@@ -231,7 +238,13 @@ function spawnWaveEnemy(){
   let sx,sy;const side=rndI(0,3);
   if(side===0){sx=rnd(0,W);sy=-50;}else if(side===1){sx=W+50;sy=rnd(0,H*0.5);}
   else if(side===2){sx=rnd(0,W);sy=-50;}else{sx=-50;sy=rnd(0,H*0.5);}
-  if(wave===11){spawnGlitchOverlord(W/2,-80);return;}
+  if(wave===18){spawnGlitchOverlord(W/2,-80);return;}
+  // Waves 11-17: spawn boss on last enemy, rest are meteors + regular enemies
+  if(wave>=11&&wave<=17&&waveELeft===0){spawnCosmicBoss(sx,sy,wave);return;}
+  if(wave>=11&&wave<=17){
+    // 60% chance meteor, 40% regular enemy
+    if(Math.random()<0.6){spawnMeteor(sx,sy);return;}
+  }
   if(wave===10&&waveELeft===0){spawnEnemy(sx,sy,5);return;}
   if(wave===8&&waveELeft===0){spawnEnemy(sx,sy,4);return;}
   if(wave===5&&waveELeft===0){spawnEnemy(sx,sy,3);return;}
@@ -256,6 +269,86 @@ function spawnEnemy(x,y,tier,type){
     tpCD:0,cloneCD:0,transformCD:0,phaseCD:0,
     underlordAb1:0,underlordAb2:0,underlordAb3:0
   });
+}
+
+// ─── METEORS & ASTEROIDS ───
+let meteors=[];
+function spawnMeteor(x,y){
+  const tier=rndI(0,2); // 0=small,1=med,2=large
+  const sizes=[14,28,48],hps=[2,8,20],spds=[2.5,1.8,1.2],pts2=[15,50,120];
+  const colors=['#887766','#aa8866','#776655'];
+  meteors.push({x,y,size:sizes[tier],hp:hps[tier],maxHP:hps[tier],speed:spds[tier]*(1+wave*0.01),
+    points:pts2[tier],tier,color:colors[tier],rot:rnd(0,Math.PI*2),rotSpd:rnd(-0.05,0.05),
+    vx:(BX-x)*0.002+rnd(-0.5,0.5),vy:Math.abs(BY-y)*0.003+rnd(0.5,1.5),flash:0,
+    jagged:Array.from({length:8},()=>rnd(0.7,1.3)) // irregular shape
+  });
+}
+
+// ─── 7 COSMIC BOSSES (waves 11-17) ───
+const COSMIC_BOSSES={
+  11:{name:'Lunar Moon',hp:300,size:60,color:'#aaccff',speed:0.4,atk:'orbit'},
+  12:{name:'Fellen Sun',hp:400,size:65,color:'#ffaa00',speed:0.35,atk:'flare'},
+  13:{name:'Infected Earth',hp:500,size:70,color:'#44aa22',speed:0.3,atk:'spore'},
+  14:{name:'Alien King',hp:600,size:55,color:'#aa44ff',speed:0.5,atk:'beam'},
+  15:{name:'Lord of the Galaxy',hp:800,size:80,color:'#4488ff',speed:0.25,atk:'gravity'},
+  16:{name:'Blood Space',hp:700,size:70,color:'#cc0000',speed:0.4,atk:'drain'},
+  17:{name:'Living Meteor',hp:900,size:75,color:'#ff6633',speed:0.6,atk:'crash'}
+};
+
+function spawnCosmicBoss(x,y,w){
+  const def=COSMIC_BOSSES[w];if(!def)return;
+  sfxBossRoar();
+  enemies.push({x,y,size:def.size,tier:5,type:'cosmic',hp:def.hp,maxHP:def.hp,speed:def.speed,
+    points:def.hp*2,shootTimer:60,zigTimer:0,zigDir:1,flash:0,
+    ab1:80,ab2:160,ab3:250,shieldHP:def.hp>500?20:0,maxShieldHP:def.hp>500?20:0,shieldCD:0,
+    enraged:false,summonT:9999,
+    isGlitch:false,isClone:false,isUnderlord:false,glitchPhase:0,
+    tpCD:9999,cloneCD:9999,transformCD:9999,phaseCD:9999,
+    majorCD1:9999,majorCD2:9999,minorCD1:9999,minorCD2:9999,minorCD3:9999,minorCD4:9999,minorCD5:9999,
+    underlordAb1:0,underlordAb2:0,underlordAb3:0,
+    glitchOffset:0,transformedAs:null,transformTimer:0,
+    // Cosmic boss data
+    cosmicName:def.name,cosmicColor:def.color,cosmicAtk:def.atk,
+    cosmicCD1:100,cosmicCD2:200,cosmicAngle:0,cosmicOrbs:[]
+  });
+}
+
+function updateCosmicBoss(e){
+  e.cosmicAngle+=0.02;
+  e.cosmicCD1--;e.cosmicCD2--;
+  const p=e.cosmicAtk;
+  // Primary attack
+  if(e.cosmicCD1<=0){
+    e.cosmicCD1=80+rndI(0,40);
+    sfxHit();
+    if(p==='orbit'){// Moon: orbiting bullets
+      for(let i=0;i<8;i++){const a=(Math.PI*2/8)*i+e.cosmicAngle;eBullets.push({x:e.x+Math.cos(a)*40,y:e.y+Math.sin(a)*40,vx:Math.cos(a)*2.5,vy:Math.sin(a)*2.5,size:4,color:'#aaccff'});}
+    }else if(p==='flare'){// Sun: solar flare lines
+      for(let i=0;i<5;i++){const a=ang(e.x,e.y,BX,BY)+rnd(-0.4,0.4);eBullets.push({x:e.x,y:e.y,vx:Math.cos(a)*3.5,vy:Math.sin(a)*3.5,size:5,color:'#ffcc00'});}
+    }else if(p==='spore'){// Earth: toxic spores that expand
+      for(let i=0;i<6;i++){const a=rnd(0,Math.PI*2);eBullets.push({x:e.x,y:e.y,vx:Math.cos(a)*1.5,vy:Math.sin(a)*1.5,size:6,color:'#66ff44',homing:true,homeSpd:0.02,life:200});}
+    }else if(p==='beam'){// Alien: aimed laser
+      bossFX.push({type:'laser',x:e.x,y:e.y,angle:ang(e.x,e.y,BX,BY),life:30,width:4,maxWidth:15,color:'#aa44ff'});
+      for(const b of aliveBlocks())if(Math.random()<0.1)destroyBlk(b);shakeT=8;
+    }else if(p==='gravity'){// Galaxy: pulls everything toward center + ring
+      for(let i=0;i<12;i++){const a=(Math.PI*2/12)*i;eBullets.push({x:e.x+Math.cos(a)*80,y:e.y+Math.sin(a)*80,vx:-Math.cos(a)*2,vy:-Math.sin(a)*2,size:4,color:'#88aaff'});}
+    }else if(p==='drain'){// Blood: drains blocks directly
+      const alive=aliveBlocks();for(let i=0;i<Math.min(3,alive.length);i++)destroyBlk(alive[rndI(0,alive.length-1)]);
+      spawnP(e.x,e.y,'#ff0000',8,5);addFT(e.x,e.y-e.size/2-15,'DRAIN','#ff0000');
+    }else if(p==='crash'){// Living Meteor: charge attack
+      const a=ang(e.x,e.y,BX,BY);e.x+=Math.cos(a)*30;e.y+=Math.sin(a)*30;
+      for(let i=0;i<8;i++)eBullets.push({x:e.x,y:e.y,vx:rnd(-3,3),vy:rnd(-3,3),size:4,color:'#ff8844'});
+      shakeT=10;
+    }
+  }
+  // Secondary attack (spawn small meteors)
+  if(e.cosmicCD2<=0){
+    e.cosmicCD2=150+rndI(0,60);
+    for(let i=0;i<2;i++)spawnMeteor(e.x+rnd(-40,40),e.y+rnd(-30,30));
+  }
+  // Shield regen for bigger bosses
+  if(e.shieldHP<=0&&e.shieldCD<=0&&e.maxShieldHP>0){e.shieldHP=e.maxShieldHP;e.shieldCD=400;}
+  if(e.shieldCD>0)e.shieldCD--;
 }
 
 // ─── GLITCH OVERLORD ───
@@ -1214,6 +1307,8 @@ function useBomb(){
     e.flash=8;spawnP(e.x,e.y,'#fff',6,4);
     if(e.hp<=0)killEnemy(i);
   }
+  // Damage meteors
+  for(let i=meteors.length-1;i>=0;i--){meteors[i].hp-=5;meteors[i].flash=6;if(meteors[i].hp<=0){score+=meteors[i].points;spawnP(meteors[i].x,meteors[i].y,meteors[i].color,6,4);meteors.splice(i,1);}}
   // Damage orb too
   if(orbMode&&orb){orb.hp-=8;orb.flash=8;if(orb.hp<=0)startOrbDeath();}
   spawnP(BX,BY,'#fff',40,14);addFT(BX,BY-100,'BOMB!','#ff0',true);
@@ -1365,6 +1460,8 @@ function update(){
     // Glitch overlord update
     if(e.isGlitch&&!e.isClone&&!e.isUnderlord&&e.tier===6)updateGlitchBoss(e,i);
     if(e.isUnderlord)updateUnderlord(e);
+    // Cosmic boss update
+    if(e.type==='cosmic')updateCosmicBoss(e);
 
     // Movement
     const a=ang(e.x,e.y,BX,BY);
@@ -1404,6 +1501,40 @@ function update(){
   // Boss FX
   for(let i=bossFX.length-1;i>=0;i--){const f=bossFX[i];f.life--;if(f.type==='shockwave')f.radius+=f.maxRadius/30;if(f.type==='laser'||f.type==='glitchBeam')f.width=f.maxWidth*(f.life/45);if(f.life<=0)bossFX.splice(i,1);}
 
+  // Meteors
+  for(let i=meteors.length-1;i>=0;i--){
+    const m=meteors[i];m.x+=m.vx;m.y+=m.vy;m.rot+=m.rotSpd;
+    if(m.flash>0)m.flash--;
+    if(m.y>H+60||m.x<-60||m.x>W+60){meteors.splice(i,1);continue;}
+    // Hit base blocks
+    const{block:blk,dist:bd}=closestBlk(m.x,m.y);
+    if(blk&&bd<m.size/2+BS){
+      const dc=1+m.tier;const alive=aliveBlocks().sort((a2,b2)=>dst(m.x,m.y,a2.x,a2.y)-dst(m.x,m.y,b2.x,b2.y));
+      for(let d=0;d<Math.min(dc,alive.length);d++)destroyBlk(alive[d]);
+      spawnP(m.x,m.y,m.color,8,5);shakeT=3+m.tier*2;sfxHit();
+      meteors.splice(i,1);continue;
+    }
+    // Bullet hits
+    for(let j=bullets.length-1;j>=0;j--){
+      const b=bullets[j];
+      if(dst(b.x,b.y,m.x,m.y)<m.size/2+b.size){
+        m.hp-=b.damage;m.flash=5;spawnP(b.x,b.y,'#aa8866',3,2);sfxHit();
+        if(m.hp<=0){
+          score+=m.points;spawnP(m.x,m.y,m.color,8+m.tier*4,4+m.tier);addFT(m.x,m.y-10,`+${m.points}`,'#ff0');sfxKill();
+          // Large meteors split into 2 smaller
+          if(m.tier>0){for(let k=0;k<2;k++){const nm={...m,x:m.x+rnd(-15,15),y:m.y+rnd(-10,10),tier:m.tier-1,size:[14,28,48][m.tier-1],hp:[2,8,20][m.tier-1],maxHP:[2,8,20][m.tier-1],speed:m.speed*1.2,vx:rnd(-1.5,1.5),vy:rnd(0.5,2),points:[15,50,120][m.tier-1],flash:0,jagged:Array.from({length:8},()=>rnd(0.7,1.3))};meteors.push(nm);}}
+          if(Math.random()<0.08+m.tier*0.05)spawnPowerup(m.x,m.y);
+          meteors.splice(i,1);
+          if(b.pierce>0){b.pierce--;b.damage*=0.8;}else bullets.splice(j,1);
+          break;
+        }
+        if(b.pierce>0){b.pierce--;b.damage*=0.8;}else{bullets.splice(j,1);break;}
+      }
+    }
+  }
+  // Bomb also damages meteors
+  // (handled inline in useBomb below)
+
   // Powerups
   for(let i=powerups.length-1;i>=0;i--){
     const p=powerups[i];p.vy=Math.min(p.vy+0.04,1.2);p.y+=p.vy;p.bobT+=0.08;p.life--;
@@ -1427,11 +1558,11 @@ function updatePFX(){
 
 function showDeath(){
   stopMusic();ui.classList.remove('hidden');
-  ui.innerHTML=`<h2>BASE DESTROYED</h2><p style="font-size:22px;color:#fff">Score: ${score}</p><p>Survived to Wave ${wave}${wave>10?' (SECRET)':''}</p><p>High Score: ${highScore}</p><p class="start-hint">Click to retry</p>`;
+  ui.innerHTML=`<h2>BASE DESTROYED</h2><p style="font-size:22px;color:#fff">Score: ${score}</p><p>Survived to Wave ${wave}${wave>17?' (SECRET)':''}</p><p>High Score: ${highScore}</p><p class="start-hint">Click to retry</p>`;
 }
 function showWin(){
   ui.classList.remove('hidden');
-  const secret=wave>10;
+  const secret=wave>17;
   if(secret){
     // This shouldn't show anymore since Simon takes over, but just in case
     ui.innerHTML=`<h1 style="color:#ff88ff">TRUE VICTORY!</h1>
@@ -1505,6 +1636,23 @@ function draw(){
 
   // Enemy bullets
   for(const b of eBullets){X.fillStyle=b.color||'#ff4444';X.shadowColor=b.color||'#ff4444';X.shadowBlur=5;X.beginPath();X.arc(b.x,b.y,b.size,0,Math.PI*2);X.fill();X.shadowBlur=0;}
+
+  // Meteors
+  for(const m of meteors){
+    X.save();X.translate(m.x,m.y);X.rotate(m.rot);
+    X.fillStyle=m.flash>0?'#fff':m.color;X.shadowColor=m.color;X.shadowBlur=4;
+    X.beginPath();
+    for(let i=0;i<8;i++){const a=(Math.PI*2/8)*i;const r=m.size/2*m.jagged[i];
+      if(i===0)X.moveTo(Math.cos(a)*r,Math.sin(a)*r);else X.lineTo(Math.cos(a)*r,Math.sin(a)*r);}
+    X.closePath();X.fill();X.shadowBlur=0;
+    // Craters
+    X.fillStyle='rgba(0,0,0,0.2)';
+    X.beginPath();X.arc(m.size*0.15,-m.size*0.1,m.size*0.12,0,Math.PI*2);X.fill();
+    X.beginPath();X.arc(-m.size*0.2,m.size*0.15,m.size*0.08,0,Math.PI*2);X.fill();
+    // HP bar for bigger meteors
+    if(m.tier>0&&m.hp<m.maxHP){X.fillStyle='#400';X.fillRect(-m.size/2,-m.size/2-6,m.size,3);X.fillStyle='#f84';X.fillRect(-m.size/2,-m.size/2-6,m.size*(m.hp/m.maxHP),3);}
+    X.restore();
+  }
 
   // Enemies
   for(const e of enemies)drawEnemy(e);
@@ -1682,8 +1830,12 @@ function drawEnemy(e){
 
   // Body
   if(e.flash>0)X.fillStyle='#fff';
+  else if(e.type==='cosmic'&&e.cosmicColor){
+    X.fillStyle=e.cosmicColor;
+    // Cosmic aura
+    X.shadowColor=e.cosmicColor;X.shadowBlur=12+Math.sin(frameN*0.06)*4;
+  }
   else if(e.isGlitch){
-    // Glitchy purple/magenta
     const hue=280+Math.sin(frameN*0.1)*20;
     X.fillStyle=e.isClone?`hsl(${hue},60%,40%)`:`hsl(${hue},80%,${e.tier===6?45:35}%)`;
     if(e.transformedAs){X.fillStyle=`hsl(${350+e.transformedAs*10},80%,50%)`;}
@@ -1729,10 +1881,16 @@ function drawEnemy(e){
   if(e.isClone){X.globalAlpha=0.5+Math.sin(frameN*0.15)*0.3;}
 
   // HP bar
-  if((e.tier>0||e.isGlitch)&&e.hp<e.maxHP){
+  if((e.tier>0||e.isGlitch||e.type==='cosmic')&&e.hp<e.maxHP){
     const bw=s+6,bh=4;X.fillStyle='#300';X.fillRect(-bw/2,-s/2-14,bw,bh);
-    X.fillStyle=e.isGlitch?'#ff00ff':'#f44';X.fillRect(-bw/2,-s/2-14,bw*(e.hp/e.maxHP),bh);
+    X.fillStyle=e.isGlitch?'#ff00ff':e.type==='cosmic'?e.cosmicColor:'#f44';
+    X.fillRect(-bw/2,-s/2-14,bw*(e.hp/e.maxHP),bh);
     if(e.shieldHP>0){X.fillStyle='#48f';X.fillRect(-bw/2,-s/2-18,bw*(e.shieldHP/e.maxShieldHP),2);}
+  }
+  // Cosmic boss name
+  if(e.type==='cosmic'&&e.cosmicName){
+    X.fillStyle=e.cosmicColor;X.font='bold 10px "Segoe UI"';X.textAlign='center';
+    X.fillText(e.cosmicName,0,-s/2-22);
   }
 
   X.textAlign='start';X.globalAlpha=1;
@@ -1795,8 +1953,8 @@ function drawHUD(){
   X.fillText(`BLOCKS ${aliveN}/${total}`,W/2,by+10);X.textAlign='start';
 
   // Left
-  X.fillStyle=wave===11?'#ff00ff':'#4488ff';X.font='bold 15px "Segoe UI"';
-  X.fillText(wave===11?'SECRET WAVE 11':`Wave ${wave}/${TOTAL_WAVES}`,10,20);
+  X.fillStyle=wave===18?'#ff00ff':'#4488ff';X.font='bold 15px "Segoe UI"';
+  X.fillText(wave===18?'SECRET WAVE 18':`Wave ${wave}/${TOTAL_WAVES}`,10,20);
   X.fillStyle='#eee';X.font='bold 15px "Segoe UI"';X.fillText(`Score: ${score}`,10,38);
   X.fillStyle='#aaa';X.font='12px "Segoe UI"';X.fillText(`Best: ${highScore}`,10,54);
 
