@@ -1014,32 +1014,14 @@ function updateSimon(){
   if(simonPhase===3){
     simonAttackCD--;
     // First 15 attacks: reuse all previous cosmic boss attack types
-    if(simonAttackCD<=0&&simonAttackIdx<15){
-      const bossAtks=['orbit','flare','spore','beam','gravity','drain','crash','orbit','flare','spore','beam','gravity','drain','crash','crash'];
-      const atk=bossAtks[simonAttackIdx];
-      sAnim.castAnim=15;sAnim.bodyGlow=0.8;setTimeout(()=>{sAnim.bodyGlow=0;},300);
-      shakeT=6;sfxHit();
-      const sx2=simonX,sy2=simonY+50;
-      if(atk==='orbit'){for(let i=0;i<10;i++){const a=(Math.PI*2/10)*i;eBullets.push({x:sx2+Math.cos(a)*50,y:sy2+Math.sin(a)*50,vx:Math.cos(a)*2.5,vy:Math.sin(a)*2.5,size:4,color:'#aaccff'});}}
-      else if(atk==='flare'){for(let i=0;i<7;i++){const a=ang(sx2,sy2,BX,BY)+rnd(-0.5,0.5);eBullets.push({x:sx2,y:sy2,vx:Math.cos(a)*3.5,vy:Math.sin(a)*3.5,size:5,color:'#ffcc00'});}}
-      else if(atk==='spore'){for(let i=0;i<5;i++){const a=rnd(0,Math.PI*2);eBullets.push({x:sx2,y:sy2,vx:Math.cos(a)*1.5,vy:Math.sin(a)*1.5,size:6,color:'#66ff44',homing:true,homeSpd:0.025,life:180});}}
-      else if(atk==='beam'){bossFX.push({type:'laser',x:sx2,y:sy2,angle:ang(sx2,sy2,BX,BY),life:30,width:4,maxWidth:18,color:'#aa44ff'});sfxLaser();for(const b of aliveBlocks())if(Math.random()<0.08)destroyBlk(b);}
-      else if(atk==='gravity'){for(let i=0;i<12;i++){const a=(Math.PI*2/12)*i;eBullets.push({x:BX+Math.cos(a)*100,y:BY+Math.sin(a)*100,vx:-Math.cos(a)*2.5,vy:-Math.sin(a)*2.5,size:4,color:'#88aaff'});}}
-      else if(atk==='drain'){const alive=aliveBlocks();for(let i=0;i<Math.min(4,alive.length);i++)destroyBlk(alive[rndI(0,alive.length-1)]);addFT(sx2,sy2-20,'DRAIN','#ff0000');}
-      else if(atk==='crash'){for(let i=0;i<10;i++)eBullets.push({x:sx2+rnd(-20,20),y:sy2,vx:rnd(-3,3),vy:rnd(1,4),size:5,color:'#ff8844'});}
-      if(Math.random()<0.4){bossFX.push({type:'shockwave',x:sx2,y:sy2,radius:0,maxRadius:100+Math.random()*60,life:25,color:['#ffcc00','#ff4444','#44aaff','#44ff44'][rndI(0,3)]});}
-      addFT(sx2,sy2-40,atk.toUpperCase(),'#ffaa00');
-      sAnim.targetArmL=rnd(-1.2,-0.3);sAnim.targetArmR=rnd(-1.2,-0.3);sAnim.targetHead=rnd(-0.1,0.1);
-      simonAttackIdx++;simonAttackCD=28;
-    }
-    // Then 30 lightning attacks (indexes 15-44)
-    if(simonAttackCD<=0&&simonAttackIdx>=15&&simonAttackIdx<45){
-      doSimonAttack(simonAttackIdx-15);
+    if(simonAttackCD<=0&&simonAttackIdx<SIMON_TOTAL_ATTACKS){
+      doSimonExtendedAttack(simonAttackIdx);
       simonAttackIdx++;
-      simonAttackCD=simonAttackIdx<25?32:simonAttackIdx<35?22:16;
+      // Pacing: starts slow, gets faster
+      simonAttackCD=simonAttackIdx<30?28:simonAttackIdx<80?22:simonAttackIdx<140?16:12;
     }
-    // After all 45 attacks, final strike
-    if(simonAttackIdx>=45&&simonBolts.length===0&&simonAttackCD<-30){
+    // After all 187 attacks, final strike
+    if(simonAttackIdx>=SIMON_TOTAL_ATTACKS&&simonBolts.length===0&&simonAttackCD<-30){
       simonPhase=4;simonTimer=0;
       sAnim.targetArmL=-1.2;sAnim.targetArmR=-1.2;
       playTone(200,0.8,'sine',0.05);
@@ -1094,7 +1076,313 @@ function updateSimon(){
   if(shakeT>0)shakeT--;
 }
 
-// ─── 30 LIGHTNING ATTACK TYPES ───
+// ═══════════════════════════════════════
+// SIMON'S 187+ ATTACK SYSTEM
+// ═══════════════════════════════════════
+// Categories: 30 lightning, 30 throwing, 30 melee/range, 10 teleport/portal,
+// 25 fire, 20 divine light, 5 player-transform, 17 portal/dimensional,
+// 20 aura/supercharged, plus boss illusions & 2nd Simon
+const SIMON_ATTACK_CATEGORIES={
+  lightning:30, throwing:30, melee:30, teleport:10,
+  fire:25, divine:20, transform:5, dimensional:17, aura:20
+};
+const SIMON_TOTAL_ATTACKS=Object.values(SIMON_ATTACK_CATEGORIES).reduce((a,b)=>a+b,0); // 187
+
+// Simon's Lore — displayed during attack phases
+const SIMON_LORE=[
+  'In the beginning, there was only the Void. Simon shaped it with lightning.',
+  'Simon forged the first stars from divine fire.',
+  'The cosmos trembled when Simon first opened his eyes.',
+  'Every boss you fought was merely a shadow of Simon\'s will.',
+  'Simon\'s trident can split dimensions.',
+  'No mortal has ever survived Simon\'s full wrath.',
+  'The golden portal in the sky leads to Simon\'s throne.',
+  'Simon exists outside of time itself.',
+  'When Simon speaks, reality listens.',
+  'The second Simon is not a clone — it is his echo across dimensions.',
+];
+let loreCooldown=0;
+
+// Extended attack executor — handles all 187 attack types
+function doSimonExtendedAttack(attackNum){
+  const sx=simonX,sy2=simonY+50;
+  sAnim.castAnim=15;sAnim.bodyGlow=0.8;
+  setTimeout(()=>{sAnim.bodyGlow=0;},250);
+  shakeT=Math.max(shakeT,5);
+
+  // Show lore occasionally
+  loreCooldown--;
+  if(loreCooldown<=0&&Math.random()<0.15){
+    addFT(W/2,H*0.12,SIMON_LORE[rndI(0,SIMON_LORE.length-1)],'#ffcc88',true);
+    loreCooldown=20;
+  }
+
+  // Determine category
+  let cat,localIdx;
+  const cats=Object.entries(SIMON_ATTACK_CATEGORIES);
+  let cumulative=0;
+  for(const [name,count] of cats){
+    if(attackNum<cumulative+count){cat=name;localIdx=attackNum-cumulative;break;}
+    cumulative+=count;
+  }
+  if(!cat){cat='lightning';localIdx=attackNum%30;}
+
+  // Animate arms based on category
+  if(cat==='lightning'||cat==='fire'||cat==='divine'){sAnim.targetArmL=rnd(-1.3,-0.5);sAnim.targetArmR=rnd(-1.3,-0.5);}
+  else if(cat==='throwing'||cat==='melee'){sAnim.targetArmR=rnd(-1.5,-0.8);sAnim.targetArmL=rnd(0.2,0.6);}
+  else if(cat==='teleport'||cat==='dimensional'){sAnim.targetArmL=rnd(-0.3,0.3);sAnim.targetArmR=rnd(-0.3,0.3);}
+  else if(cat==='aura'){sAnim.targetArmL=-1.2;sAnim.targetArmR=-1.2;}
+  sAnim.targetHead=rnd(-0.08,0.08);
+
+  switch(cat){
+    case 'lightning': doLightningAttack(localIdx,sx,sy2); break;
+    case 'throwing': doThrowingAttack(localIdx,sx,sy2); break;
+    case 'melee': doMeleeAttack(localIdx,sx,sy2); break;
+    case 'teleport': doTeleportAttack(localIdx,sx,sy2); break;
+    case 'fire': doFireAttack(localIdx,sx,sy2); break;
+    case 'divine': doDivineAttack(localIdx,sx,sy2); break;
+    case 'transform': doTransformAttack(localIdx,sx,sy2); break;
+    case 'dimensional': doDimensionalAttack(localIdx,sx,sy2); break;
+    case 'aura': doAuraAttack(localIdx,sx,sy2); break;
+  }
+}
+
+// ─── THROWING ATTACKS (30) — Simon hurls enemies, bosses, UFOs ───
+function doThrowingAttack(idx,sx,sy){
+  sfxBossRoar();
+  const types=['normal','fast','tank','shooter','zigzag'];
+  if(idx<10){
+    // Throw 1-3 regular enemies at base
+    const count=1+Math.floor(idx/3);
+    for(let i=0;i<count;i++){
+      const t=types[idx%5];
+      spawnEnemy(sx+rnd(-30,30),sy+rnd(-20,20),rndI(0,2),t);
+    }
+    addFT(sx,sy-30,'THROW!','#ff8844');
+  } else if(idx<18){
+    // Throw meteors
+    for(let i=0;i<2+Math.floor(idx/6);i++)spawnMeteor(sx+rnd(-40,40),sy);
+    addFT(sx,sy-30,'METEOR THROW!','#aa7755');
+  } else if(idx<24){
+    // Throw UFOs
+    spawnUFO();
+    addFT(sx,sy-30,'UFO THROW!','#88ff88');
+  } else if(idx<27){
+    // Throw cosmic boss fragments
+    for(let i=0;i<3;i++){
+      const a=rnd(0,Math.PI*2);
+      eBullets.push({x:sx,y:sy,vx:Math.cos(a)*4,vy:Math.sin(a)*4,size:8,color:['#aaccff','#ffaa00','#44aa22','#aa44ff'][rndI(0,3)]});
+    }
+    spawnEnemy(sx+rnd(-30,30),sy,rndI(1,3));
+    addFT(sx,sy-30,'BOSS FRAGMENT!','#ff4444');
+  } else {
+    // Throw everything at once
+    spawnEnemy(sx-40,sy,rndI(0,2));spawnEnemy(sx+40,sy,rndI(0,2));
+    spawnMeteor(sx,sy-20);if(ufos.length<3)spawnUFO();
+    for(let i=0;i<5;i++)eBullets.push({x:sx+rnd(-20,20),y:sy,vx:rnd(-3,3),vy:rnd(1,4),size:5,color:'#ff4444'});
+    addFT(sx,sy-40,'EVERYTHING!','#ff0000',true);shakeT=12;
+  }
+}
+
+// ─── MELEE/RANGE WEAPON ATTACKS (30) ───
+function doMeleeAttack(idx,sx,sy){
+  sfxHit();
+  if(idx<8){
+    // Trident thrust — line of damage toward base
+    const a=ang(sx,sy,BX,BY);
+    for(let i=0;i<6;i++){
+      const d=40+i*30;
+      eBullets.push({x:sx+Math.cos(a)*d,y:sy+Math.sin(a)*d,vx:Math.cos(a)*3,vy:Math.sin(a)*3,size:6,color:'#ffcc00'});
+    }
+    addFT(sx,sy-30,'TRIDENT!','#ffcc00');
+  } else if(idx<15){
+    // Sword slash — arc of bullets
+    const a=ang(sx,sy,BX,BY);
+    for(let i=-4;i<=4;i++){
+      const sa=a+i*0.15;
+      eBullets.push({x:sx,y:sy,vx:Math.cos(sa)*5,vy:Math.sin(sa)*5,size:5,color:'#ffaa44'});
+    }
+    addFT(sx,sy-30,'SLASH!','#ffaa44');
+  } else if(idx<22){
+    // Hammer smash — destroys blocks directly + shockwave
+    destroyNBlocks(3+Math.floor(idx/5));
+    bossFX.push({type:'shockwave',x:BX,y:BY,radius:0,maxRadius:80+idx*5,life:25,color:'#ffcc00'});
+    shakeT=10;addFT(BX,BY-40,'SMASH!','#ffcc00');
+  } else {
+    // Spear rain from above
+    for(let i=0;i<8+idx-22;i++){
+      const rx=rnd(BX-60,BX+60);
+      eBullets.push({x:rx,y:-10,vx:0,vy:4+Math.random()*2,size:4,color:'#ffdd44'});
+    }
+    addFT(sx,sy-30,'SPEAR RAIN!','#ffdd44');
+  }
+}
+
+// ─── TELEPORT/PORTAL ATTACKS (10) ───
+function doTeleportAttack(idx,sx,sy){
+  sfxTeleport();
+  if(idx<5){
+    // Teleport to base, drop enemies, teleport back
+    spawnP(sx,sy,'#ffcc00',10,6);
+    const oldX=sx,oldY=sy;
+    simonX=BX;simonY=BY-80;
+    spawnP(BX,BY-80,'#ffcc00',10,6);
+    // Drop enemies at base
+    for(let i=0;i<2+idx;i++)spawnEnemy(BX+rnd(-40,40),BY-60+rnd(-20,20),0);
+    addFT(BX,BY-100,'AMBUSH!','#ffcc00',true);
+    // Teleport back after brief moment
+    setTimeout(()=>{if(simonActive){spawnP(simonX,simonY,'#ffcc00',8,5);simonX=oldX;simonY=oldY;spawnP(oldX,oldY,'#ffcc00',8,5);}},500);
+  } else {
+    // Portal attack — open portal that spews enemies
+    bossFX.push({type:'shockwave',x:BX+rnd(-60,60),y:rnd(60,H*0.4),radius:0,maxRadius:60,life:30,color:'#ffcc00'});
+    for(let i=0;i<3;i++)spawnEnemy(BX+rnd(-50,50),rnd(40,H*0.3),rndI(0,1));
+    addFT(sx,sy-30,'PORTAL!','#aa44ff');
+  }
+}
+
+// ─── FIRE ATTACKS (25) ───
+function doFireAttack(idx,sx,sy){
+  sfxExplosion();
+  if(idx<8){
+    // Fireball volley
+    for(let i=0;i<4+Math.floor(idx/2);i++){
+      const a=ang(sx,sy,BX,BY)+rnd(-0.4,0.4);
+      eBullets.push({x:sx,y:sy,vx:Math.cos(a)*(2.5+idx*0.2),vy:Math.sin(a)*(2.5+idx*0.2),size:6,color:'#ff4400'});
+    }
+    addFT(sx,sy-30,'FIREBALL!','#ff4400');
+  } else if(idx<16){
+    // Fire ring expanding outward
+    for(let i=0;i<12;i++){
+      const a=(Math.PI*2/12)*i;
+      eBullets.push({x:sx,y:sy,vx:Math.cos(a)*3,vy:Math.sin(a)*3,size:5,color:'#ff6600'});
+    }
+    addFT(sx,sy-30,'FIRE RING!','#ff6600');
+  } else if(idx<22){
+    // Fire rain
+    for(let i=0;i<10;i++)eBullets.push({x:rnd(BX-80,BX+80),y:-10,vx:rnd(-0.5,0.5),vy:rnd(2,5),size:5,color:'#ff3300'});
+    addFT(sx,sy-30,'FIRE RAIN!','#ff3300');
+    flash('#ff2200',0.15);
+  } else {
+    // Inferno — massive fire + block damage
+    for(let i=0;i<16;i++){const a=rnd(0,Math.PI*2);eBullets.push({x:sx,y:sy,vx:Math.cos(a)*rnd(2,5),vy:Math.sin(a)*rnd(2,5),size:rndI(4,7),color:'#ff4400'});}
+    destroyNBlocks(4);shakeT=12;flash('#ff4400',0.25);
+    addFT(sx,sy-40,'INFERNO!','#ff0000',true);
+  }
+}
+
+// ─── DIVINE LIGHT ATTACKS (20) ───
+function doDivineAttack(idx,sx,sy){
+  sfxPhaseChange();
+  if(idx<7){
+    // Light beam — laser from above
+    bossFX.push({type:'laser',x:BX+rnd(-40,40),y:-10,angle:Math.PI/2,life:35,width:4,maxWidth:20,color:'#ffffaa'});
+    destroyNBlocks(2);flash('#ffffaa',0.2);
+    addFT(sx,sy-30,'DIVINE BEAM!','#ffffaa');
+  } else if(idx<14){
+    // Light pillars — multiple vertical beams
+    for(let i=0;i<3+Math.floor(idx/4);i++){
+      const px=BX+rnd(-70,70);
+      bossFX.push({type:'laser',x:px,y:-10,angle:Math.PI/2,life:25,width:3,maxWidth:12,color:'#ffffcc'});
+    }
+    destroyNBlocks(3);flash('#ffffcc',0.15);
+    addFT(sx,sy-30,'LIGHT PILLARS!','#ffffcc');
+  } else {
+    // Divine judgment — screen-wide flash + damage
+    flash('#ffffff',0.5);shakeT=15;
+    destroyNBlocks(5+Math.floor(idx/3));
+    for(let i=0;i<20;i++)spawnP(BX+rnd(-50,50),BY+rnd(-50,50),'#ffffaa',2,4);
+    addFT(W/2,H/2,'DIVINE JUDGMENT!','#ffffaa',true);
+  }
+}
+
+// ─── PLAYER-TRANSFORMATION ATTACKS (5) ───
+function doTransformAttack(idx,sx,sy){
+  sfxGlitch();
+  // Briefly disable player shooting or reduce fire rate
+  const oldRate=shootRate;
+  shootRate=Math.min(30,shootRate+15);
+  setTimeout(()=>{shootRate=oldRate;},3000);
+  // Also spawn confusion enemies
+  for(let i=0;i<2+idx;i++)spawnAlien(BX+rnd(-60,60),-20);
+  flash('#ff88ff',0.2);
+  const msgs=['WEAKENED!','CONFUSED!','SLOWED!','CURSED!','HEXED!'];
+  addFT(BX,BY-80,msgs[idx%5],'#ff88ff',true);
+}
+
+// ─── DIMENSIONAL/PORTAL ATTACKS (17) ───
+function doDimensionalAttack(idx,sx,sy){
+  sfxGlitch();sfxTeleport();
+  if(idx<6){
+    // Open dimensional rifts that spawn enemies
+    for(let i=0;i<2;i++){
+      const rx=rnd(60,W-60),ry=rnd(40,H*0.4);
+      bossFX.push({type:'shockwave',x:rx,y:ry,radius:0,maxRadius:40,life:20,color:'#aa44ff'});
+      spawnEnemy(rx,ry,rndI(0,1));
+    }
+    addFT(sx,sy-30,'RIFT!','#aa44ff');
+  } else if(idx<12){
+    // Boss illusions — ghost bosses appear briefly and shoot
+    const ghostColors=['#aaccff','#ffaa00','#44aa22','#aa44ff','#cc0000'];
+    for(let i=0;i<2;i++){
+      const gx=rnd(80,W-80),gy=rnd(60,H*0.4);
+      // Spawn temporary glitch enemies as "ghosts"
+      const ghost={x:gx,y:gy,size:40,tier:3,type:'cosmic',hp:1,maxHP:1,speed:0,
+        points:0,shootTimer:0,zigTimer:0,zigDir:1,flash:0,
+        ab1:9999,ab2:9999,ab3:9999,shieldHP:0,maxShieldHP:0,shieldCD:0,enraged:false,summonT:9999,
+        isGlitch:false,isClone:false,isUnderlord:false,glitchPhase:0,
+        tpCD:9999,cloneCD:9999,transformCD:9999,phaseCD:9999,
+        majorCD1:9999,majorCD2:9999,minorCD1:9999,minorCD2:9999,minorCD3:9999,minorCD4:9999,minorCD5:9999,
+        underlordAb1:0,underlordAb2:0,underlordAb3:0,
+        glitchOffset:0,transformedAs:null,transformTimer:0,
+        cosmicName:'ILLUSION',cosmicColor:ghostColors[rndI(0,4)],cosmicAtk:null,cosmicCD1:9999,cosmicCD2:9999,cosmicAngle:0};
+      enemies.push(ghost);
+      // Ghost fires at base then vanishes
+      for(let j=0;j<4;j++){const a=ang(gx,gy,BX,BY)+rnd(-0.3,0.3);eBullets.push({x:gx,y:gy,vx:Math.cos(a)*3,vy:Math.sin(a)*3,size:4,color:ghostColors[rndI(0,4)]});}
+    }
+    addFT(sx,sy-30,'ILLUSIONS!','#cc88ff',true);
+  } else {
+    // 2nd Simon from golden sky portal!
+    flash('#ffcc00',0.4);shakeT=15;
+    bossFX.push({type:'shockwave',x:W/2,y:30,radius:0,maxRadius:100,life:35,color:'#ffcc00'});
+    // The 2nd Simon fires a barrage
+    for(let i=0;i<12;i++){
+      const a=ang(W/2,30,BX,BY)+rnd(-0.6,0.6);
+      simonBolts.push(genBolt(W/2+rnd(-30,30),30,BX+rnd(-50,50),BY,25));
+    }
+    addFT(W/2,60,'THE 2ND SIMON!','#ffcc00',true);
+    sfxBossRoar();sfxThunder();
+  }
+}
+
+// ─── AURA/SUPERCHARGED ATTACKS (20) ───
+function doAuraAttack(idx,sx,sy){
+  sfxPhaseChange();
+  if(idx<7){
+    // Energy pulse — ring of fast bullets
+    for(let i=0;i<14+idx;i++){
+      const a=(Math.PI*2/(14+idx))*i;
+      eBullets.push({x:sx,y:sy,vx:Math.cos(a)*(3+idx*0.3),vy:Math.sin(a)*(3+idx*0.3),size:4,color:'#ffdd00'});
+    }
+    addFT(sx,sy-30,'ENERGY PULSE!','#ffdd00');
+  } else if(idx<14){
+    // Supercharged bolts — multiple lightning
+    for(let i=0;i<3+Math.floor(idx/3);i++){
+      simonBolts.push(genBolt(sx+rnd(-30,30),sy,BX+rnd(-50,50),BY,25));
+    }
+    sfxThunder();addFT(sx,sy-30,'SUPERCHARGED!','#ffff44');
+  } else {
+    // Aura explosion — everything at once
+    for(let i=0;i<20;i++){const a=rnd(0,Math.PI*2);eBullets.push({x:sx,y:sy,vx:Math.cos(a)*rnd(2,5),vy:Math.sin(a)*rnd(2,5),size:rndI(3,6),color:['#ffdd00','#ffaa00','#ffffff'][rndI(0,2)]});}
+    simonBolts.push(genBolt(sx,sy,BX,BY,35));
+    destroyNBlocks(3);shakeT=12;flash('#ffdd00',0.3);
+    addFT(sx,sy-40,'AURA EXPLOSION!','#ffdd00',true);
+  }
+}
+
+// ─── LIGHTNING ATTACKS (original 30, now as sub-function) ───
+function doLightningAttack(idx,sx,sy){ doSimonAttack(idx); }
+
+// ─── ORIGINAL 30 LIGHTNING ATTACK TYPES ───
 function doSimonAttack(idx){
   const sy=simonY+50,sx=simonX;
   sfxThunder();
@@ -1511,7 +1799,7 @@ function drawSimon(){
   // Phase 3 attack counter
   if(simonPhase===3){
     X.fillStyle='rgba(255,204,0,0.6)';X.font='bold 14px monospace';X.textAlign='center';
-    X.fillText(`BOLT ${simonAttackIdx}/30`,W/2,sy+90);
+    X.fillText(`ATTACK ${simonAttackIdx}/${SIMON_TOTAL_ATTACKS}`,W/2,sy+90);
   }
 
   X.globalAlpha=1;X.textAlign='start';
