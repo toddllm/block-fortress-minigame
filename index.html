@@ -275,9 +275,10 @@ function nextWave(){
     addFT(W/2,H/2+30,'STRONGER THAN BEFORE','#ff8844',true);
   }
   if(wave===68){
-    addFT(W/2,H/2-60,'SECRET WAVE 18','#ff00ff',true);
+    addFT(W/2,H/2-60,'SECRET WAVE 68','#ff00ff',true);
     addFT(W/2,H/2-20,'THE CORRUPTED GLITCH OVERLORD','#ff0044',true);
     flash('#ff00ff',0.6);sfxGlitch();sfxBossRoar();
+    mercyUsed=false; // reset so wave advancement works again after Simon
   }
 }
 function spawnWaveEnemy(){
@@ -2109,7 +2110,7 @@ function update(){
   // Wave
   if(waveTimer>0)waveTimer--;
   else if(waveELeft>0){if(frameN%Math.max(8,35-wave*2)===0)spawnWaveEnemy();}
-  else if(enemies.length===0&&waveELeft<=0&&!orbMode&&!simonActive&&!simonPending)nextWave();
+  else if(enemies.length===0&&waveELeft<=0&&!orbMode&&!simonActive&&!simonPending&&!mercyUsed)nextWave();
 
   // Bullets
   for(let i=bullets.length-1;i>=0;i--){
@@ -2384,7 +2385,7 @@ function showWin(){
     // Wave 10 win — no retry, game continues to wave 11
     ui.innerHTML=`<h1 style="color:#44ff44">VICTORY!</h1>
       <p style="font-size:22px;color:#fff">Score: ${score}</p>
-      <p>All 10 waves defeated!</p>
+      <p>All ${TOTAL_WAVES} waves defeated!</p>
       <p>Blocks: ${aliveN}/${BCOLS*BROWS}</p>
       <p>High Score: ${highScore}</p>`;
   }
@@ -2882,7 +2883,7 @@ function drawHUD(){
 
   // Left
   X.fillStyle=wave===68?'#ff00ff':'#4488ff';X.font='bold 15px "Segoe UI"';
-  X.fillText(wave===68?'SECRET WAVE 18':`Wave ${wave}/${TOTAL_WAVES}`,10,20);
+  X.fillText(wave===68?'SECRET WAVE 68':`Wave ${wave}/${TOTAL_WAVES}`,10,20);
   // Planet name
   const plHud=getPlanetForWave(wave);
   X.fillStyle='#666';X.font='10px "Segoe UI"';X.fillText(plHud.name,10,90);
