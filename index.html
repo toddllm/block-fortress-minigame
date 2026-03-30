@@ -91,7 +91,7 @@ function startMusic(){
 function stopMusic(){if(musicInterval){clearInterval(musicInterval);musicInterval=null;}}
 
 // ─── CONSTANTS ───
-const BX=W/2,BY=H-70,BS=7,BCOLS=9,BROWS=9,TOTAL_WAVES=117;
+const BX=W/2,BY=H-70,BS=7,BCOLS=9,BROWS=9,TOTAL_WAVES=70;
 const PLANETS=[
   {name:'Earth',bg:'#080818',planet:'#2244aa',ring:false},      // 1-2
   {name:'Mars',bg:'#0c0808',planet:'#aa4422',ring:false},       // 3-4
@@ -273,20 +273,20 @@ function nextWave(){
     addFT(BX,BY-50,'BASE RESTORED','#44ff88');
     sfxPowerup();
   }
-  if(wave>118){
+  if(wave>70){
     // Beat wave 118 (Simon) - true ending
     gameWon=true;state='won';
     if(score>highScore){highScore=score;localStorage.setItem('bfH3',highScore);}
     stopMusic();sfxVictoryFanfare();showWin();return;
   }
-  waveTimer=wave===118?150:180;
+  waveTimer=wave===70?150:180;
   // Wave 118 = Glitch Overlord only; waves 11-17 = boss + meteors; 1-10 = original
-  waveELeft=wave===118?1:wave>=11?Math.min(8+Math.floor(wave*1.5),80):Math.min(5+wave*3,50);
+  waveELeft=wave===70?1:wave>=11?Math.min(8+Math.floor(wave*1.5),80):Math.min(5+wave*3,50);
   sfxWaveStart();
   // Wave labels
   const BOSS_NAMES={11:'LUNAR MOON',12:'FELLEN SUN',13:'INFECTED EARTH',14:'ALIEN KING',15:'THE LORD OF THE GALAXY',16:'BLOOD SPACE',17:'LIVING METEOR'};
   const BOSS_COLORS={11:'#aaccff',12:'#ffaa00',13:'#44aa22',14:'#aa44ff',15:'#4488ff',16:'#cc0000',17:'#ff6633'};
-  const isBossW=(wave>=11&&wave<=17)||(wave>17&&wave<=117&&wave%7===0);
+  const isBossW=(wave>=11&&wave<=17)||(wave>17&&wave<=69&&wave%7===0);
   if(wave<=TOTAL_WAVES)addFT(W/2,H/2-50,`WAVE ${wave}/${TOTAL_WAVES}`,'#4488ff',true);
   if(wave===5)addFT(W/2,H/2,'TIER 3 BOSS!','#e94560',true);
   if(wave===8)addFT(W/2,H/2,'TIER 4 BOSS!','#ff2222',true);
@@ -295,13 +295,13 @@ function nextWave(){
     addFT(W/2,H/2,BOSS_NAMES[wave]+'!',BOSS_COLORS[wave],true);
     addFT(W/2,H/2+30,'+ METEOR STORM','#ff8844',true);
   }
-  if(isBossW&&wave>17&&wave<=117){
+  if(isBossW&&wave>17&&wave<=69){
     const bIdx=11+((wave-18)%7);
     addFT(W/2,H/2,BOSS_NAMES[bIdx]+' RETURNS!',(BOSS_COLORS[bIdx]||'#ff4444'),true);
     addFT(W/2,H/2+30,'STRONGER THAN BEFORE','#ff8844',true);
   }
-  if(wave===118){
-    addFT(W/2,H/2-60,'SECRET WAVE 118','#ff00ff',true);
+  if(wave===70){
+    addFT(W/2,H/2-60,'WAVE 70 — CORRUPTED GLITCH OVERLORD','#ff00ff',true);
     addFT(W/2,H/2-20,'THE CORRUPTED GLITCH OVERLORD','#ff0044',true);
     flash('#ff00ff',0.6);sfxGlitch();sfxBossRoar();
     mercyUsed=false; // reset so wave advancement works again after Simon
@@ -312,15 +312,15 @@ function spawnWaveEnemy(){
   let sx,sy;const side=rndI(0,3);
   if(side===0){sx=rnd(0,W);sy=-50;}else if(side===1){sx=W+50;sy=rnd(0,H*0.5);}
   else if(side===2){sx=rnd(0,W);sy=-50;}else{sx=-50;sy=rnd(0,H*0.5);}
-  if(wave===118){spawnGlitchOverlord(W/2,-80);return;}
-  // Cosmic bosses: waves 11-17 original, then every 7 waves through 117
-  const isBossWave=(wave>=11&&wave<=17)||(wave>17&&wave<=117&&wave%7===0);
+  if(wave===70){spawnGlitchOverlord(W/2,-80);return;}
+  // Cosmic bosses: waves 11-17 original, then every 7 waves through 69
+  const isBossWave=(wave>=11&&wave<=17)||(wave>17&&wave<=69&&wave%7===0);
   if(isBossWave&&waveELeft===0){
     const bossIdx=wave<=17?wave:11+((wave-18)%7);
     spawnCosmicBoss(sx,sy,bossIdx);return;
   }
   // Waves 11-117: varied spawns with scaling intensity
-  if(wave>=11&&wave<=117){
+  if(wave>=11&&wave<=69){
     const r=Math.random();
     const intensity=Math.min(1,wave/60);
     if(r<0.3+intensity*0.1){spawnMeteor(sx,sy);if(wave>=30&&Math.random()<0.3)spawnMeteor(sx+rnd(-60,60),sy);return;}
@@ -2020,14 +2020,14 @@ function shoot(){
 // ─── MERCY BUTTON — secret skip to Simon ───
 let mercyUsed=false;
 function useMercyButton(){
-  if(state!=='playing'||simonActive||orbMode||wave>=118)return;
+  if(state!=='playing'||simonActive||orbMode||wave>=70)return;
   // Clear everything
   enemies=[];meteors=[];ufos=[];aliens=[];eBullets=[];bossFX=[];powerups=[];
   waveELeft=0;waveTimer=0;
   // Restore base fully
   for(const b of baseBlocks)b.alive=true;aliveN=baseBlocks.length;
   // Skip straight to Simon fight
-  wave=118; // set to Simon wave
+  wave=70; // set to Glitch/Simon wave
   mercyUsed=false; // so wave advancement works
   simonPending=false;
   flash('#ffcc00',0.6);shakeT=15;
@@ -2462,11 +2462,11 @@ function updatePFX(){
 
 function showDeath(){
   stopMusic();ui.classList.remove('hidden');
-  ui.innerHTML=`<h2>BASE DESTROYED</h2><p style="font-size:22px;color:#fff">Score: ${score}</p><p>Survived to Wave ${wave}${wave>117?' (SECRET)':''}</p><p>High Score: ${highScore}</p><p class="start-hint">Click to retry</p>`;
+  ui.innerHTML=`<h2>BASE DESTROYED</h2><p style="font-size:22px;color:#fff">Score: ${score}</p><p>Survived to Wave ${wave}${wave>69?' (SECRET)':''}</p><p>High Score: ${highScore}</p><p class="start-hint">Click to retry</p>`;
 }
 function showWin(){
   ui.classList.remove('hidden');
-  const secret=wave>117;
+  const secret=wave>69;
   if(secret){
     // This shouldn't show anymore since Simon takes over, but just in case
     ui.innerHTML=`<h1 style="color:#ff88ff">TRUE VICTORY!</h1>
@@ -2992,8 +2992,8 @@ function drawHUD(){
   X.fillText(`BLOCKS ${aliveN}/${total}`,W/2,by+10);X.textAlign='start';
 
   // Left
-  X.fillStyle=wave===118?'#ff00ff':'#4488ff';X.font='bold 15px "Segoe UI"';
-  X.fillText(wave===118?'SECRET WAVE 118':`Wave ${wave}/${TOTAL_WAVES}`,10,20);
+  X.fillStyle=wave===70?'#ff00ff':'#4488ff';X.font='bold 15px "Segoe UI"';
+  X.fillText(wave===70?'WAVE 70 — CORRUPTED GLITCH OVERLORD':`Wave ${wave}/${TOTAL_WAVES}`,10,20);
   // Planet name
   const plHud=getPlanetForWave(wave);
   X.fillStyle='#666';X.font='10px "Segoe UI"';X.fillText(plHud.name,10,90);
@@ -3035,7 +3035,7 @@ function drawHUD(){
   if(orbitalStrikeActive){X.fillStyle='#ff8800';X.font='9px "Segoe UI"';X.fillText('ORBITAL STRIKE',W-10,uhY);uhY+=12;}
   if(phoenixReady){X.fillStyle='#ff6600';X.font='9px "Segoe UI"';X.fillText('PHOENIX READY',W-10,uhY);uhY+=12;}
   if(superGoldActive){X.fillStyle='#ffdd00';X.font='9px "Segoe UI"';X.fillText('GOLD x10',W-10,uhY);uhY+=12;}
-  if(!mercyUsed&&!simonActive&&wave<118){X.fillStyle=`rgba(255,204,0,${0.4+Math.sin(frameN*0.06)*0.2})`;X.font='10px "Segoe UI"';X.fillText('[M] Mercy Button',W-10,uhY);}
+  if(!mercyUsed&&!simonActive&&wave<70){X.fillStyle=`rgba(255,204,0,${0.4+Math.sin(frameN*0.06)*0.2})`;X.font='10px "Segoe UI"';X.fillText('[M] Mercy Button',W-10,uhY);}
   X.textAlign='start';
 }
 
