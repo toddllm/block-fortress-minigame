@@ -213,7 +213,7 @@ C.addEventListener('mousemove',e=>{const r=C.getBoundingClientRect();mouseX=e.cl
 C.addEventListener('mousedown',()=>{mouseDown=true;resumeAudio();if(state!=='playing')startGame();});
 C.addEventListener('mouseup',()=>mouseDown=false);
 document.addEventListener('click',()=>{resumeAudio();if(state!=='playing')startGame();});
-document.addEventListener('keydown',e=>{if(e.key===' '){e.preventDefault();useBomb();}if(e.key==='u'||e.key==='U')tryUpgradeCannon();if(e.key==='m'||e.key==='M')useMercyButton();if(e.key==='Enter'&&state!=='playing')startGame();});
+document.addEventListener('keydown',e=>{if(e.key===' '){e.preventDefault();useBomb();}if(e.key==='u'||e.key==='U')tryUpgradeCannon();if(e.key==='m'||e.key==='M')useMercyButton();if(e.key==='s'||e.key==='S')buySkin();if(e.key==='e'||e.key==='E')buyExtraCannon();if(e.key==='Enter'&&state!=='playing')startGame();});
 C.addEventListener('touchstart',e=>{e.preventDefault();resumeAudio();const t=e.touches[0],r=C.getBoundingClientRect();mouseX=t.clientX-r.left;mouseY=t.clientY-r.top;mouseDown=true;if(state!=='playing')startGame();});
 C.addEventListener('touchmove',e=>{e.preventDefault();const t=e.touches[0],r=C.getBoundingClientRect();mouseX=t.clientX-r.left;mouseY=t.clientY-r.top;});
 C.addEventListener('touchend',()=>mouseDown=false);
@@ -252,7 +252,7 @@ function startGame(){
   state='playing';score=0;wave=0;waveTimer=100;gameWon=false;
   shootRate=12;bDmg=1;bSpd=10;bPierce=0;multi=1;bombN=3;
   bullets=[];enemies=[];powerups=[];particles=[];floatTexts=[];eBullets=[];bossFX=[];meteors=[];ufos=[];aliens=[];stormActive=false;stormTimer=0;
-  spazeMoney=0;cannonLevel=1;cannonSkin=0;friendlyUFOs=[];micCooldown=0;mercyUsed=false;
+  spazeMoney=0;cannonLevel=1;cannonSkin=0;extraCannons=[];friendlyUFOs=[];micCooldown=0;mercyUsed=false;
   glitchBoss=null;glitchPhase=0;glitchClones=[];orbMode=false;orb=null;orbDeathAnim=0;orbPixels=[];secretUnlocked=false;
   simonActive=false;simonPending=false;simonPhase=0;simonTimer=0;lightning=null;
   orbitalStrikeActive=false;quantumShieldActive=false;hyperCannonActive=false;gravityWellActive=false;chainLightningActive=false;phoenixReady=false;superGoldActive=false;
@@ -419,21 +419,54 @@ function triggerStorm(){
 
 // ─── SPAZE-MONEY SYSTEM ───
 let spazeMoney=0;
-let cannonLevel=1; // 1-5
-let cannonSkin=0; // 0=default,1=gold,2=plasma,3=void,4=godly
+let cannonLevel=1; // 1-8 (evolves into monstrosities)
+let cannonSkin=0;
+// Cannon evolution: Basic -> ... -> MONSTROSITY (8 levels)
 const CANNON_UPGRADES=[
-  {name:'Basic',cost:0,dmgMul:1,rateMul:1,color:'#66aaff'},
-  {name:'Reinforced',cost:50,dmgMul:1.3,rateMul:0.9,color:'#88ccff'},
-  {name:'Plasma',cost:150,dmgMul:1.8,rateMul:0.75,color:'#44ffaa'},
-  {name:'Void',cost:400,dmgMul:2.5,rateMul:0.6,color:'#aa44ff'},
-  {name:'Godly',cost:1000,dmgMul:4,rateMul:0.45,color:'#ffcc00'}
+  {name:'Basic',cost:0,dmgMul:1,rateMul:1,color:'#66aaff',barrels:1,size:1},
+  {name:'Reinforced',cost:50,dmgMul:1.3,rateMul:0.9,color:'#88ccff',barrels:1,size:1.1},
+  {name:'Plasma',cost:150,dmgMul:1.8,rateMul:0.75,color:'#44ffaa',barrels:1,size:1.2},
+  {name:'Void',cost:400,dmgMul:2.5,rateMul:0.6,color:'#aa44ff',barrels:2,size:1.3},
+  {name:'Godly',cost:1000,dmgMul:4,rateMul:0.45,color:'#ffcc00',barrels:2,size:1.5},
+  {name:'Titan',cost:2500,dmgMul:6,rateMul:0.35,color:'#ff4444',barrels:3,size:1.8},
+  {name:'Cosmic Horror',cost:5000,dmgMul:10,rateMul:0.25,color:'#ff00ff',barrels:4,size:2.2},
+  {name:'MONSTROSITY',cost:10000,dmgMul:16,rateMul:0.18,color:'#ffffff',barrels:5,size:2.8}
 ];
-const CANNON_SKINS=['#66aaff','#ffcc00','#44ffaa','#8844ff','#ff4444'];
+// Buyable cannon skins (press S to cycle)
+const CANNON_SKINS=[
+  {name:'Default',cost:0,color:'#66aaff'},
+  {name:'Fire',cost:100,color:'#ff4400'},
+  {name:'Ice',cost:100,color:'#44ddff'},
+  {name:'Galaxy',cost:200,color:'#8844ff'},
+  {name:'Gold',cost:300,color:'#ffcc00'},
+  {name:'Neon',cost:500,color:'#44ff44'},
+  {name:'Shadow',cost:500,color:'#444444'},
+  {name:'Rainbow',cost:1000,color:null} // cycles hue
+];
+function buySkin(){
+  if(state!=='playing')return;
+  const ns=(cannonSkin+1)%CANNON_SKINS.length;
+  const sk=CANNON_SKINS[ns];
+  if(spazeMoney>=sk.cost){if(sk.cost>0)spazeMoney-=sk.cost;cannonSkin=ns;addFT(BX,BY-80,'SKIN: '+sk.name,'#ffcc00');sfxPowerup();}
+  else addFT(BX,BY-80,'Need $'+sk.cost,'#ff4444');
+}
+// Extra cannons (press E to buy, max 4)
+let extraCannons=[];
+function buyExtraCannon(){
+  if(state!=='playing')return;
+  const cost=500+extraCannons.length*500;
+  if(spazeMoney>=cost&&extraCannons.length<4){
+    spazeMoney-=cost;
+    const positions=[{x:BX-50,y:BY-20},{x:BX+50,y:BY-20},{x:BX-40,y:BY-50},{x:BX+40,y:BY-50}];
+    extraCannons.push({x:positions[extraCannons.length].x,y:positions[extraCannons.length].y});
+    addFT(BX,BY-80,'EXTRA CANNON #'+(extraCannons.length)+'!','#44aaff',true);sfxPowerup();
+  } else addFT(BX,BY-80,extraCannons.length>=4?'MAX CANNONS':'Need $'+cost,'#ff4444');
+}
 function spawnCoin(x,y,val){
   powerups.push({x,y,type:{name:`+${val}$`,color:'#ffdd00',icon:'$',apply:()=>{spazeMoney+=val;}},size:14,life:500,vy:-1.5,bobT:rnd(0,6)});
 }
 function tryUpgradeCannon(){
-  if(cannonLevel>=5)return;
+  if(cannonLevel>=CANNON_UPGRADES.length)return;
   const cost=CANNON_UPGRADES[cannonLevel].cost;
   if(spazeMoney>=cost){spazeMoney-=cost;cannonLevel++;addFT(BX,BY-80,'CANNON UPGRADED!','#ffcc00',true);sfxPowerup();}
 }
@@ -1471,16 +1504,27 @@ function doDimensionalAttack(idx,sx,sy){
     }
     addFT(sx,sy-30,'ILLUSIONS!','#cc88ff',true);
   } else {
-    // 2nd Simon from golden sky portal!
-    flash('#ffcc00',0.4);shakeT=15;
-    bossFX.push({type:'shockwave',x:W/2,y:30,radius:0,maxRadius:100,life:35,color:'#ffcc00'});
-    // The 2nd Simon fires a barrage
-    for(let i=0;i<12;i++){
-      const a=ang(W/2,30,BX,BY)+rnd(-0.6,0.6);
-      simonBolts.push(genBolt(W/2+rnd(-30,30),30,BX+rnd(-50,50),BY,25));
+    // Simon opens the sky with his TRIDENT — golden portal — 2nd Simon descends
+    sfxBossRoar();sfxThunder();sfxPhaseChange();
+    flash('#ffcc00',0.6);shakeT=20;
+    // Trident raised — arm animation
+    sAnim.targetArmL=0.3;sAnim.targetArmR=-1.8;sAnim.targetHead=-0.15;
+    // Sky splits open — vertical crack of light
+    bossFX.push({type:'laser',x:W/2,y:0,angle:Math.PI/2,life:50,width:3,maxWidth:30,color:'#ffcc00'});
+    // Golden portal in the sky
+    bossFX.push({type:'shockwave',x:W/2,y:40,radius:0,maxRadius:120,life:45,color:'#ffcc00'});
+    // Smaller ring portals
+    bossFX.push({type:'shockwave',x:W/2,y:40,radius:0,maxRadius:70,life:35,color:'#ffaa00'});
+    // 2nd Simon descends with lightning barrage
+    for(let i=0;i<16;i++){
+      simonBolts.push(genBolt(W/2+rnd(-40,40),20+rnd(-10,10),BX+rnd(-60,60),BY,30));
     }
-    addFT(W/2,60,'THE 2ND SIMON!','#ffcc00',true);
-    sfxBossRoar();sfxThunder();
+    // Trident visual — golden line from Simon's hand to sky
+    bossFX.push({type:'laser',x:sx,y:sy-20,angle:-Math.PI/2,life:40,width:2,maxWidth:8,color:'#ffdd44'});
+    addFT(W/2,30,'THE SKY OPENS!','#ffcc00',true);
+    addFT(W/2,70,'2ND SIMON DESCENDS!','#ffaa00',true);
+    // Spawn golden particles falling from portal
+    for(let i=0;i<30;i++)spawnP(W/2+rnd(-60,60),rnd(10,60),'#ffcc00',1,3);
   }
 }
 
@@ -2010,11 +2054,19 @@ function shoot(){
   const ty=BY-(BROWS*BS)/2-4;
   const a=ang(BX,ty,mouseX,mouseY);
   sfxShoot();
+  const cu=CANNON_UPGRADES[cannonLevel-1];
+  // Get cannon color (skin overrides upgrade color)
+  const skinCol=CANNON_SKINS[cannonSkin];
+  const bColor=skinCol.color||(skinCol.name==='Rainbow'?`hsl(${frameN*3%360},80%,60%)`:cu.color);
   for(let i=0;i<multi;i++){
     const sp=multi>1?(i-(multi-1)/2)*0.12:0;
     const ba=a+sp;
-    const cu=CANNON_UPGRADES[cannonLevel-1];
-    bullets.push({x:BX,y:ty,vx:Math.cos(ba)*bSpd,vy:Math.sin(ba)*bSpd,damage:bDmg*cu.dmgMul,pierce:bPierce,size:4+bDmg*0.8});
+    bullets.push({x:BX,y:ty,vx:Math.cos(ba)*bSpd,vy:Math.sin(ba)*bSpd,damage:bDmg*cu.dmgMul,pierce:bPierce,size:4+bDmg*0.8,color:bColor});
+  }
+  // Extra cannons also fire
+  for(const ec of extraCannons){
+    const ea=ang(ec.x,ec.y,mouseX,mouseY);
+    bullets.push({x:ec.x,y:ec.y,vx:Math.cos(ea)*bSpd,vy:Math.sin(ea)*bSpd,damage:bDmg*cu.dmgMul*0.6,pierce:Math.max(0,bPierce-1),size:3+bDmg*0.5,color:bColor});
   }
 }
 // ─── MERCY BUTTON — secret skip to Simon ───
@@ -2546,7 +2598,31 @@ function draw(){
   if(aliveN>0){
     const ty=BY-(BROWS*BS)/2-4;const a=ang(BX,ty,mouseX,mouseY);
     X.save();X.translate(BX,ty);X.rotate(a);
-    const cc=CANNON_UPGRADES[cannonLevel-1].color;X.fillStyle=cc;X.fillRect(0,-3,22,6);X.fillStyle='#fff';X.globalAlpha=0.3;X.fillRect(0,-3,22,2);X.globalAlpha=1;X.fillStyle=cc;X.fillRect(18,-5,8,10);
+    const cu=CANNON_UPGRADES[cannonLevel-1];
+    const skinCol=CANNON_SKINS[cannonSkin];
+    const cc=skinCol.color||(skinCol.name==='Rainbow'?`hsl(${frameN*3%360},80%,60%)`:cu.color);
+    const sz=cu.size||1;
+    X.scale(sz,sz);
+    // Draw barrels based on evolution level
+    const barrels=cu.barrels||1;
+    for(let b=0;b<barrels;b++){
+      const off=(b-(barrels-1)/2)*4;
+      X.fillStyle=cc;X.fillRect(0,-3+off,22,Math.max(3,6-barrels+1));
+    }
+    X.fillStyle='#fff';X.globalAlpha=0.3;X.fillRect(0,-3,22,2);X.globalAlpha=1;
+    X.fillStyle=cc;X.fillRect(18,-5,8,10);
+    // Monstrosity glow
+    if(cannonLevel>=6){X.shadowColor=cc;X.shadowBlur=8+cannonLevel*2;X.fillRect(18,-5,8,10);X.shadowBlur=0;}
+    X.restore();
+  }
+  // Draw extra cannons
+  for(const ec of extraCannons){
+    const ea=ang(ec.x,ec.y,mouseX,mouseY);
+    X.save();X.translate(ec.x,ec.y);X.rotate(ea);
+    const skinCol2=CANNON_SKINS[cannonSkin];
+    const ec2=skinCol2.color||(skinCol2.name==='Rainbow'?`hsl(${(frameN*3+90)%360},80%,60%)`:CANNON_UPGRADES[cannonLevel-1].color);
+    X.fillStyle=ec2;X.fillRect(0,-2,16,4);X.fillStyle='#fff';X.globalAlpha=0.2;X.fillRect(0,-2,16,1);X.globalAlpha=1;
+    X.fillRect(13,-3,5,6);
     X.restore();
   }
 
@@ -3021,7 +3097,8 @@ function drawHUD(){
   X.fillStyle='#ff0';X.font='13px "Segoe UI"';X.fillText(`Bombs: ${bombN} [SPACE]`,W-10,20);
   X.fillStyle='#ffdd00';X.fillText(`$${spazeMoney} [U=upgrade]`,W-10,36);
   X.fillStyle='#777';X.font='10px monospace';
-  X.fillText(`${CANNON_UPGRADES[cannonLevel-1].name} | DMG:${bDmg.toFixed(1)} RATE:${shootRate} MULTI:${multi}`,W-10,50);
+  X.fillText(`${CANNON_UPGRADES[cannonLevel-1].name}${extraCannons.length>0?' +'+extraCannons.length:''} | ${CANNON_SKINS[cannonSkin].name}`,W-10,50);
+  X.fillText(`DMG:${bDmg.toFixed(1)} RATE:${shootRate} MULTI:${multi} [S]kin [E]xtra`,W-10,62);
   const te=enemies.length+waveELeft+meteors.length;
   if(te>0){X.fillStyle='#e94560';X.font='12px "Segoe UI"';X.fillText(`Enemies: ${te}`,W-10,64);}
   if(micActive){X.fillStyle=micCooldown>0?'#555':'#44ffaa';X.font='10px "Segoe UI"';X.fillText(micCooldown>0?'MIC: cooldown':'MIC: speak for ally',W-10,78);}
