@@ -91,7 +91,7 @@ function startMusic(){
 function stopMusic(){if(musicInterval){clearInterval(musicInterval);musicInterval=null;}}
 
 // ─── CONSTANTS ───
-const BX=W/2,BY=H-70,BS=7,BCOLS=9,BROWS=9,TOTAL_WAVES=67;
+const BX=W/2,BY=H-70,BS=7,BCOLS=9,BROWS=9,TOTAL_WAVES=117;
 const PLANETS=[
   {name:'Earth',bg:'#080818',planet:'#2244aa',ring:false},      // 1-2
   {name:'Mars',bg:'#0c0808',planet:'#aa4422',ring:false},       // 3-4
@@ -126,7 +126,32 @@ const PLANETS=[
   {name:'Final Frontier',bg:'#060406',planet:'#aa66cc',ring:true},   // 61-62
   {name:'Edge of Reality',bg:'#030204',planet:'#553366',ring:true},  // 63-64
   {name:'The Void',bg:'#010101',planet:'#222222',ring:false},        // 65-66
-  {name:'Simon\'s Domain',bg:'#0a0804',planet:'#ffcc00',ring:true}   // 67+
+  {name:'Shattered Prism',bg:'#080410',planet:'#cc66ff',ring:true},  // 67-68
+  {name:'Molten Abyss',bg:'#0c0202',planet:'#ff3300',ring:false},    // 69-70
+  {name:'Frozen Chaos',bg:'#040a0e',planet:'#66ddff',ring:true},     // 71-72
+  {name:'Phantom Nebula',bg:'#060308',planet:'#9944cc',ring:true},   // 73-74
+  {name:'Crimson Rift',bg:'#0a0204',planet:'#cc2244',ring:false},    // 75-76
+  {name:'Starforge',bg:'#0a0806',planet:'#ffbb44',ring:true},        // 77-78
+  {name:'Null Space',bg:'#020202',planet:'#1a1a2e',ring:false},      // 79-80
+  {name:'Plasma Storm',bg:'#060408',planet:'#4466ff',ring:true},     // 81-82
+  {name:'Deadworld',bg:'#030303',planet:'#555544',ring:false},       // 83-84
+  {name:'Hypernova',bg:'#0c0806',planet:'#ff8800',ring:true},        // 85-86
+  {name:'Ghost Sector',bg:'#040406',planet:'#667788',ring:false},    // 87-88
+  {name:'Chaos Engine',bg:'#080204',planet:'#dd2266',ring:true},     // 89-90
+  {name:'Infinity Well',bg:'#020206',planet:'#3344aa',ring:true},    // 91-92
+  {name:'Solar Tomb',bg:'#0a0604',planet:'#cc8822',ring:false},      // 93-94
+  {name:'Twilight Reef',bg:'#040608',planet:'#448888',ring:true},    // 95-96
+  {name:'Omega Point',bg:'#060206',planet:'#aa22aa',ring:true},      // 97-98
+  {name:'Entropy Bloom',bg:'#080406',planet:'#bb6644',ring:false},   // 99-100
+  {name:'Singularity',bg:'#010103',planet:'#222255',ring:true},      // 101-102
+  {name:'Abyssal Gate',bg:'#020204',planet:'#334466',ring:true},     // 103-104
+  {name:'Nova Remnant',bg:'#080604',planet:'#dd9944',ring:false},    // 105-106
+  {name:'Doom Core',bg:'#0a0202',planet:'#cc1111',ring:true},        // 107-108
+  {name:'Last Light',bg:'#060604',planet:'#aaaa44',ring:false},      // 109-110
+  {name:'Warp Nexus',bg:'#040208',planet:'#5544cc',ring:true},       // 111-112
+  {name:'Eternal Night',bg:'#020202',planet:'#181828',ring:false},   // 113-114
+  {name:'Ragnarok',bg:'#0c0404',planet:'#ff2200',ring:true},         // 115-116
+  {name:'Simon\'s Domain',bg:'#0a0804',planet:'#ffcc00',ring:true}   // 117+
 ];
 
 // ─── STATE ───
@@ -230,6 +255,7 @@ function startGame(){
   spazeMoney=0;cannonLevel=1;cannonSkin=0;friendlyUFOs=[];micCooldown=0;mercyUsed=false;
   glitchBoss=null;glitchPhase=0;glitchClones=[];orbMode=false;orb=null;orbDeathAnim=0;orbPixels=[];secretUnlocked=false;
   simonActive=false;simonPending=false;simonPhase=0;simonTimer=0;lightning=null;
+  orbitalStrikeActive=false;quantumShieldActive=false;hyperCannonActive=false;gravityWellActive=false;chainLightningActive=false;phoenixReady=false;superGoldActive=false;
   camFloating=false;
   initBase();ui.classList.add('hidden');
   startMusic();
@@ -247,20 +273,20 @@ function nextWave(){
     addFT(BX,BY-50,'BASE RESTORED','#44ff88');
     sfxPowerup();
   }
-  if(wave>68){
-    // Beat wave 18 (Glitch Overlord) - true ending
+  if(wave>118){
+    // Beat wave 118 (Simon) - true ending
     gameWon=true;state='won';
     if(score>highScore){highScore=score;localStorage.setItem('bfH3',highScore);}
     stopMusic();sfxVictoryFanfare();showWin();return;
   }
-  waveTimer=wave===68?150:180;
-  // Wave 18 = Glitch Overlord only; waves 11-17 = boss + meteors; 1-10 = original
-  waveELeft=wave===68?1:wave>=11?Math.min(8+Math.floor(wave*1.5),80):Math.min(5+wave*3,50);
+  waveTimer=wave===118?150:180;
+  // Wave 118 = Glitch Overlord only; waves 11-17 = boss + meteors; 1-10 = original
+  waveELeft=wave===118?1:wave>=11?Math.min(8+Math.floor(wave*1.5),80):Math.min(5+wave*3,50);
   sfxWaveStart();
   // Wave labels
   const BOSS_NAMES={11:'LUNAR MOON',12:'FELLEN SUN',13:'INFECTED EARTH',14:'ALIEN KING',15:'THE LORD OF THE GALAXY',16:'BLOOD SPACE',17:'LIVING METEOR'};
   const BOSS_COLORS={11:'#aaccff',12:'#ffaa00',13:'#44aa22',14:'#aa44ff',15:'#4488ff',16:'#cc0000',17:'#ff6633'};
-  const isBossW=(wave>=11&&wave<=17)||(wave>17&&wave<=67&&wave%7===0);
+  const isBossW=(wave>=11&&wave<=17)||(wave>17&&wave<=117&&wave%7===0);
   if(wave<=TOTAL_WAVES)addFT(W/2,H/2-50,`WAVE ${wave}/${TOTAL_WAVES}`,'#4488ff',true);
   if(wave===5)addFT(W/2,H/2,'TIER 3 BOSS!','#e94560',true);
   if(wave===8)addFT(W/2,H/2,'TIER 4 BOSS!','#ff2222',true);
@@ -269,13 +295,13 @@ function nextWave(){
     addFT(W/2,H/2,BOSS_NAMES[wave]+'!',BOSS_COLORS[wave],true);
     addFT(W/2,H/2+30,'+ METEOR STORM','#ff8844',true);
   }
-  if(isBossW&&wave>17&&wave<=67){
+  if(isBossW&&wave>17&&wave<=117){
     const bIdx=11+((wave-18)%7);
     addFT(W/2,H/2,BOSS_NAMES[bIdx]+' RETURNS!',(BOSS_COLORS[bIdx]||'#ff4444'),true);
     addFT(W/2,H/2+30,'STRONGER THAN BEFORE','#ff8844',true);
   }
-  if(wave===68){
-    addFT(W/2,H/2-60,'SECRET WAVE 68','#ff00ff',true);
+  if(wave===118){
+    addFT(W/2,H/2-60,'SECRET WAVE 118','#ff00ff',true);
     addFT(W/2,H/2-20,'THE CORRUPTED GLITCH OVERLORD','#ff0044',true);
     flash('#ff00ff',0.6);sfxGlitch();sfxBossRoar();
     mercyUsed=false; // reset so wave advancement works again after Simon
@@ -286,15 +312,15 @@ function spawnWaveEnemy(){
   let sx,sy;const side=rndI(0,3);
   if(side===0){sx=rnd(0,W);sy=-50;}else if(side===1){sx=W+50;sy=rnd(0,H*0.5);}
   else if(side===2){sx=rnd(0,W);sy=-50;}else{sx=-50;sy=rnd(0,H*0.5);}
-  if(wave===68){spawnGlitchOverlord(W/2,-80);return;}
-  // Cosmic bosses: waves 11-17 original, then every 7 waves through 67
-  const isBossWave=(wave>=11&&wave<=17)||(wave>17&&wave<=67&&wave%7===0);
+  if(wave===118){spawnGlitchOverlord(W/2,-80);return;}
+  // Cosmic bosses: waves 11-17 original, then every 7 waves through 117
+  const isBossWave=(wave>=11&&wave<=17)||(wave>17&&wave<=117&&wave%7===0);
   if(isBossWave&&waveELeft===0){
     const bossIdx=wave<=17?wave:11+((wave-18)%7);
     spawnCosmicBoss(sx,sy,bossIdx);return;
   }
-  // Waves 11-67: varied spawns with scaling intensity
-  if(wave>=11&&wave<=67){
+  // Waves 11-117: varied spawns with scaling intensity
+  if(wave>=11&&wave<=117){
     const r=Math.random();
     const intensity=Math.min(1,wave/60);
     if(r<0.3+intensity*0.1){spawnMeteor(sx,sy);if(wave>=30&&Math.random()<0.3)spawnMeteor(sx+rnd(-60,60),sy);return;}
@@ -512,6 +538,54 @@ const SUPER_INSANE_PU=[
     const ivl=setInterval(()=>{repairBase(5);},200);
     setTimeout(()=>clearInterval(ivl),10000);
     addFT(BX,BY-80,'INVINCIBLE 10s!','#88ffff',true);flash('#88ffff',0.3);
+  }},
+];
+
+// ─── ULTRA INSANE POWER-UPS (waves 80+) ───
+let orbitalStrikeActive=false,quantumShieldActive=false,hyperCannonActive=false,gravityWellActive=false,chainLightningActive=false,phoenixReady=false,superGoldActive=false;
+const ULTRA_INSANE_PU=[
+  {name:'ORBITAL STRIKE',color:'#ff8800',icon:'O',tier:'ultra',apply:()=>{
+    orbitalStrikeActive=true;addFT(BX,BY-80,'ORBITAL STRIKE!','#ff8800',true);flash('#ff8800',0.5);sfxExplosion();
+    let t=0;const iv=setInterval(()=>{if(state!=='playing'||t>50){clearInterval(iv);orbitalStrikeActive=false;return;}
+    for(let i=0;i<3;i++){const bx=rnd(40,W-40);bullets.push({x:bx,y:-10,vx:rnd(-0.5,0.5),vy:12,damage:15,pierce:3,size:6,orbital:true});}t++;},200);
+  }},
+  {name:'QUANTUM SHIELD',color:'#00ffff',icon:'Q',tier:'ultra',apply:()=>{
+    quantumShieldActive=true;addFT(BX,BY-80,'QUANTUM SHIELD 15s!','#00ffff',true);flash('#00ffff',0.4);
+    const iv=setInterval(()=>{if(state==='playing'){for(const b of baseBlocks)b.alive=true;aliveN=baseBlocks.length;}},100);
+    setTimeout(()=>{clearInterval(iv);quantumShieldActive=false;addFT(BX,BY-60,'Shield fading...','#008888');},15000);
+  }},
+  {name:'MEGA BOMB RAIN',color:'#ff4400',icon:'B',tier:'ultra',apply:()=>{
+    addFT(BX,BY-80,'MEGA BOMB RAIN!','#ff4400',true);flash('#ff4400',0.6);sfxExplosion();
+    for(let i=0;i<20;i++){setTimeout(()=>{if(state!=='playing')return;const bx=rnd(30,W-30);
+    for(let j=enemies.length-1;j>=0;j--){const e=enemies[j];if(dst(bx,H*0.4,e.x,e.y)<80){e.hp-=25;e.flash=10;if(e.hp<=0)killEnemy(j);}}
+    for(let j=meteors.length-1;j>=0;j--){const m=meteors[j];if(dst(bx,H*0.4,m.x,m.y)<80){m.hp-=25;if(m.hp<=0){score+=m.points;meteors.splice(j,1);}}}
+    spawnP(bx,H*0.4,'#ff8844',12,6);shakeT=Math.max(shakeT,5);sfxBomb();},i*150);}
+  }},
+  {name:'HYPER CANNON',color:'#ffff00',icon:'H',tier:'ultra',apply:()=>{
+    hyperCannonActive=true;const oldRate=shootRate,oldDmg=bDmg,oldMulti=multi;
+    shootRate=1;bDmg+=20;multi=Math.min(9,multi+5);
+    addFT(BX,BY-80,'HYPER CANNON 20s!','#ffff00',true);flash('#ffff00',0.5);
+    setTimeout(()=>{shootRate=oldRate;bDmg=oldDmg;multi=oldMulti;hyperCannonActive=false;addFT(BX,BY-60,'Cannon normalizing...','#888800');},20000);
+  }},
+  {name:'GRAVITY WELL',color:'#aa00ff',icon:'G',tier:'ultra',apply:()=>{
+    gravityWellActive=true;addFT(BX,BY-80,'GRAVITY WELL!','#aa00ff',true);flash('#aa00ff',0.4);
+    const cx=W/2,cy=H*0.35;let t=0;
+    const iv=setInterval(()=>{if(state!=='playing'||t>80){clearInterval(iv);gravityWellActive=false;return;}
+    for(const e of enemies){const a=ang(e.x,e.y,cx,cy);const d=Math.max(20,dst(e.x,e.y,cx,cy));e.x+=Math.cos(a)*Math.min(4,200/d);e.y+=Math.sin(a)*Math.min(4,200/d);if(d<60){e.hp-=3;e.flash=3;if(e.hp<=0){const idx=enemies.indexOf(e);if(idx>=0)killEnemy(idx);}}}
+    for(const m of meteors){const a=ang(m.x,m.y,cx,cy);const d=Math.max(20,dst(m.x,m.y,cx,cy));m.x+=Math.cos(a)*Math.min(3,150/d);m.y+=Math.sin(a)*Math.min(3,150/d);}
+    spawnP(cx+rnd(-40,40),cy+rnd(-40,40),'#aa00ff',2,3);t++;},100);
+  }},
+  {name:'CHAIN LIGHTNING',color:'#44ddff',icon:'Z',tier:'ultra',apply:()=>{
+    chainLightningActive=true;addFT(BX,BY-80,'CHAIN LIGHTNING 20s!','#44ddff',true);flash('#44ddff',0.3);
+    setTimeout(()=>{chainLightningActive=false;addFT(BX,BY-60,'Lightning fading...','#226688');},20000);
+  }},
+  {name:'PHOENIX MODE',color:'#ff6600',icon:'P',tier:'ultra',apply:()=>{
+    phoenixReady=true;addFT(BX,BY-80,'PHOENIX MODE!','#ff6600',true);addFT(BX,BY-50,'Auto-revive ready','#ffaa44',true);flash('#ff6600',0.4);
+  }},
+  {name:'SUPER GOLD x10',color:'#ffdd00',icon:'$',tier:'ultra',apply:()=>{
+    superGoldActive=true;addFT(BX,BY-80,'SUPER GOLD x10 30s!','#ffdd00',true);flash('#ffdd00',0.5);
+    for(let i=0;i<15;i++)spawnCoin(rnd(40,W-40),rnd(-100,-20),rndI(20,60));
+    setTimeout(()=>{superGoldActive=false;addFT(BX,BY-60,'Gold rush ending...','#886600');},30000);
   }},
 ];
 
@@ -1946,21 +2020,22 @@ function shoot(){
 // ─── MERCY BUTTON — secret skip to Simon ───
 let mercyUsed=false;
 function useMercyButton(){
-  if(state!=='playing'||simonActive||orbMode||wave>=68)return;
-  mercyUsed=true;
+  if(state!=='playing'||simonActive||orbMode||wave>=118)return;
   // Clear everything
   enemies=[];meteors=[];ufos=[];aliens=[];eBullets=[];bossFX=[];powerups=[];
   waveELeft=0;waveTimer=0;
   // Restore base fully
   for(const b of baseBlocks)b.alive=true;aliveN=baseBlocks.length;
-  // Skip straight to wave 18 (Simon)
-  wave=67; // nextWave() will increment to 68
+  // Skip straight to Simon fight
+  wave=118; // set to Simon wave
+  mercyUsed=false; // so wave advancement works
+  simonPending=false;
   flash('#ffcc00',0.6);shakeT=15;
   sfxGlitch();sfxTeleport();
   addFT(W/2,H/2-30,'MERCY BUTTON ACTIVATED','#ffcc00',true);
   addFT(W/2,H/2+10,'Teleporting to Simon...','#ffaa00',true);
-  // Brief delay then trigger Simon wave
-  setTimeout(()=>{if(state==='playing')nextWave();},1500);
+  // Brief delay then start Simon directly (skip Glitch Overlord)
+  setTimeout(()=>{if(state==='playing')startSimonSequence();},1500);
 }
 
 function useBomb(){
@@ -2010,6 +2085,15 @@ function killEnemy(i){
     }
   }
   if(Math.random()<0.1+e.tier*0.06)spawnPowerup(e.x,e.y);
+  // Chain lightning: damage nearby enemies on kill
+  if(chainLightningActive){
+    const cx=e.x,cy=e.y;
+    for(let k=enemies.length-1;k>=0;k--){if(k===i)continue;const ne=enemies[k];
+    if(dst(cx,cy,ne.x,ne.y)<120){ne.hp-=8;ne.flash=6;spawnP(ne.x,ne.y,'#44ddff',4,3);
+    if(ne.hp<=0)killEnemy(k);}}
+  }
+  // Super gold multiplier
+  if(superGoldActive){spawnCoin(e.x+rnd(-15,15),e.y+rnd(-15,15),Math.max(5,Math.floor(e.points/5)));spawnCoin(e.x+rnd(-15,15),e.y+rnd(-15,15),Math.max(5,Math.floor(e.points/5)));}
   // Drop Spaze-Money coins
   const coinChance=0.3+e.tier*0.05;
   if(Math.random()<coinChance)spawnCoin(e.x+rnd(-10,10),e.y+rnd(-10,10),Math.max(1,Math.floor(e.points/20)));
@@ -2075,7 +2159,7 @@ function update(){
     if(orbMode&&!orbDeathAnim&&frameN%30===0&&aliveN<BCOLS*BROWS){
       repairBase(3);
     }
-    if(aliveN<=0){state='dead';shakeT=20;stopMusic();startCamFloat();if(score>highScore){highScore=score;localStorage.setItem('bfH3',highScore);}showDeath();}
+    if(aliveN<=0){if(phoenixReady){phoenixReady=false;for(const b of baseBlocks)b.alive=true;aliveN=baseBlocks.length;flash('#ff6600',0.8);shakeT=15;addFT(BX,BY-60,'PHOENIX REVIVE!','#ff6600',true);sfxPowerup();}else{state='dead';shakeT=20;stopMusic();startCamFloat();if(score>highScore){highScore=score;localStorage.setItem('bfH3',highScore);}showDeath();}}
     if(screenFlash.alpha>0)screenFlash.alpha=Math.max(0,screenFlash.alpha-screenFlash.decay);
     if(shakeT>0)shakeT--;
     return;
@@ -2125,6 +2209,8 @@ function update(){
         if(e.shieldHP>0){e.shieldHP-=b.damage;if(e.shieldHP<0){e.hp+=e.shieldHP;e.shieldHP=0;}spawnP(b.x,b.y,'#88ccff',3,2);}
         else e.hp-=b.damage;
         e.flash=6;spawnP(b.x,b.y,'#6f6',3,3);sfxHit();
+        // Chain lightning: chain damage to nearby enemies
+        if(chainLightningActive){for(let k=enemies.length-1;k>=0;k--){if(k===j)continue;const ne=enemies[k];if(dst(b.x,b.y,ne.x,ne.y)<100){ne.hp-=b.damage*0.4;ne.flash=4;spawnP(ne.x,ne.y,'#44ddff',3,2);if(ne.hp<=0)killEnemy(k);}}}
         if(e.hp<=0)killEnemy(j);
         if(b.pierce>0){b.pierce--;b.damage*=0.8;}else hit=true;
         break;
@@ -2339,6 +2425,11 @@ function update(){
     const pu=SUPER_INSANE_PU[rndI(0,SUPER_INSANE_PU.length-1)];
     powerups.push({x:rnd(60,W-60),y:-20,type:pu,size:24,life:400,vy:-1.5,bobT:rnd(0,6)});
   }
+  // ULTRA insane power-ups in waves 80+
+  if(wave>=80&&frameN%1200===0&&Math.random()<0.12){
+    const pu=ULTRA_INSANE_PU[rndI(0,ULTRA_INSANE_PU.length-1)];
+    powerups.push({x:rnd(60,W-60),y:-20,type:pu,size:28,life:350,vy:-2,bobT:rnd(0,6),ultra:true});
+  }
 
   // Friendly UFO updates
   updateFriendlyUFOs();
@@ -2361,7 +2452,7 @@ function update(){
   if(shakeT>0)shakeT--;
 
   aliveN=baseBlocks.filter(b=>b.alive).length;
-  if(aliveN<=0){state='dead';shakeT=20;stopMusic();spawnP(BX,BY,'#4488ff',60,12);startCamFloat();if(score>highScore){highScore=score;localStorage.setItem('bfH3',highScore);}showDeath();}
+  if(aliveN<=0){if(phoenixReady){phoenixReady=false;for(const b of baseBlocks)b.alive=true;aliveN=baseBlocks.length;flash('#ff6600',0.8);shakeT=15;addFT(BX,BY-60,'PHOENIX REVIVE!','#ff6600',true);sfxPowerup();}else{state='dead';shakeT=20;stopMusic();spawnP(BX,BY,'#4488ff',60,12);startCamFloat();if(score>highScore){highScore=score;localStorage.setItem('bfH3',highScore);}showDeath();}}
 }
 
 function updatePFX(){
@@ -2371,11 +2462,11 @@ function updatePFX(){
 
 function showDeath(){
   stopMusic();ui.classList.remove('hidden');
-  ui.innerHTML=`<h2>BASE DESTROYED</h2><p style="font-size:22px;color:#fff">Score: ${score}</p><p>Survived to Wave ${wave}${wave>67?' (SECRET)':''}</p><p>High Score: ${highScore}</p><p class="start-hint">Click to retry</p>`;
+  ui.innerHTML=`<h2>BASE DESTROYED</h2><p style="font-size:22px;color:#fff">Score: ${score}</p><p>Survived to Wave ${wave}${wave>117?' (SECRET)':''}</p><p>High Score: ${highScore}</p><p class="start-hint">Click to retry</p>`;
 }
 function showWin(){
   ui.classList.remove('hidden');
-  const secret=wave>67;
+  const secret=wave>117;
   if(secret){
     // This shouldn't show anymore since Simon takes over, but just in case
     ui.innerHTML=`<h1 style="color:#ff88ff">TRUE VICTORY!</h1>
@@ -2543,10 +2634,29 @@ function draw(){
   // Powerups
   for(const p of powerups){
     const bob=Math.sin(p.bobT)*3,al=p.life<60?p.life/60:1;
-    X.globalAlpha=al;X.strokeStyle=p.type.color;X.lineWidth=1.5;X.shadowColor=p.type.color;X.shadowBlur=8;
-    X.beginPath();X.arc(p.x,p.y+bob,p.size*0.9,0,Math.PI*2);X.stroke();X.shadowBlur=0;
-    X.fillStyle=p.type.color;X.fillRect(p.x-p.size/2,p.y-p.size/2+bob,p.size,p.size);
-    X.fillStyle='#000';X.font='bold 11px monospace';X.textAlign='center';X.fillText(p.type.icon,p.x,p.y+4+bob);
+    const isUltra=p.ultra||p.type.tier==='ultra';
+    X.globalAlpha=al;
+    if(isUltra){
+      // Golden/rainbow pulsing glow for ultra power-ups
+      const hue=(frameN*3)%360;
+      X.shadowColor=`hsl(${hue},100%,60%)`;X.shadowBlur=18;
+      X.strokeStyle='#ffcc00';X.lineWidth=3;
+      X.beginPath();X.arc(p.x,p.y+bob,p.size*1.1,0,Math.PI*2);X.stroke();
+      X.strokeStyle=`hsl(${hue},100%,70%)`;X.lineWidth=1.5;
+      X.beginPath();X.arc(p.x,p.y+bob,p.size*1.3,0,Math.PI*2);X.stroke();
+      X.shadowBlur=0;
+      // Golden background with rainbow border
+      const grd=X.createRadialGradient(p.x,p.y+bob,0,p.x,p.y+bob,p.size);
+      grd.addColorStop(0,'#ffee44');grd.addColorStop(0.7,p.type.color);grd.addColorStop(1,'#ffcc00');
+      X.fillStyle=grd;X.fillRect(p.x-p.size/2,p.y-p.size/2+bob,p.size,p.size);
+      X.strokeStyle='#fff';X.lineWidth=1;X.strokeRect(p.x-p.size/2,p.y-p.size/2+bob,p.size,p.size);
+    } else {
+      X.strokeStyle=p.type.color;X.lineWidth=1.5;X.shadowColor=p.type.color;X.shadowBlur=8;
+      X.beginPath();X.arc(p.x,p.y+bob,p.size*0.9,0,Math.PI*2);X.stroke();X.shadowBlur=0;
+      X.fillStyle=p.type.color;X.fillRect(p.x-p.size/2,p.y-p.size/2+bob,p.size,p.size);
+    }
+    X.fillStyle=isUltra?'#000':'#000';X.font=isUltra?'bold 13px monospace':'bold 11px monospace';X.textAlign='center';X.fillText(p.type.icon,p.x,p.y+4+bob);
+    if(isUltra){X.fillStyle='#ffcc00';X.font='bold 7px monospace';X.fillText('ULTRA',p.x,p.y-p.size/2+bob-4);}
     X.globalAlpha=1;
   }
 
@@ -2882,8 +2992,8 @@ function drawHUD(){
   X.fillText(`BLOCKS ${aliveN}/${total}`,W/2,by+10);X.textAlign='start';
 
   // Left
-  X.fillStyle=wave===68?'#ff00ff':'#4488ff';X.font='bold 15px "Segoe UI"';
-  X.fillText(wave===68?'SECRET WAVE 68':`Wave ${wave}/${TOTAL_WAVES}`,10,20);
+  X.fillStyle=wave===118?'#ff00ff':'#4488ff';X.font='bold 15px "Segoe UI"';
+  X.fillText(wave===118?'SECRET WAVE 118':`Wave ${wave}/${TOTAL_WAVES}`,10,20);
   // Planet name
   const plHud=getPlanetForWave(wave);
   X.fillStyle='#666';X.font='10px "Segoe UI"';X.fillText(plHud.name,10,90);
@@ -2916,7 +3026,16 @@ function drawHUD(){
   if(te>0){X.fillStyle='#e94560';X.font='12px "Segoe UI"';X.fillText(`Enemies: ${te}`,W-10,64);}
   if(micActive){X.fillStyle=micCooldown>0?'#555':'#44ffaa';X.font='10px "Segoe UI"';X.fillText(micCooldown>0?'MIC: cooldown':'MIC: speak for ally',W-10,78);}
   // Mercy Button hint
-  if(!mercyUsed&&!simonActive&&wave<18){X.fillStyle=`rgba(255,204,0,${0.4+Math.sin(frameN*0.06)*0.2})`;X.font='10px "Segoe UI"';X.fillText('[M] Mercy Button',W-10,92);}
+  // Active ultra power-up indicators
+  let uhY=92;
+  if(quantumShieldActive){X.fillStyle='#00ffff';X.font='9px "Segoe UI"';X.fillText('QUANTUM SHIELD',W-10,uhY);uhY+=12;}
+  if(chainLightningActive){X.fillStyle='#44ddff';X.font='9px "Segoe UI"';X.fillText('CHAIN LIGHTNING',W-10,uhY);uhY+=12;}
+  if(hyperCannonActive){X.fillStyle='#ffff00';X.font='9px "Segoe UI"';X.fillText('HYPER CANNON',W-10,uhY);uhY+=12;}
+  if(gravityWellActive){X.fillStyle='#aa00ff';X.font='9px "Segoe UI"';X.fillText('GRAVITY WELL',W-10,uhY);uhY+=12;}
+  if(orbitalStrikeActive){X.fillStyle='#ff8800';X.font='9px "Segoe UI"';X.fillText('ORBITAL STRIKE',W-10,uhY);uhY+=12;}
+  if(phoenixReady){X.fillStyle='#ff6600';X.font='9px "Segoe UI"';X.fillText('PHOENIX READY',W-10,uhY);uhY+=12;}
+  if(superGoldActive){X.fillStyle='#ffdd00';X.font='9px "Segoe UI"';X.fillText('GOLD x10',W-10,uhY);uhY+=12;}
+  if(!mercyUsed&&!simonActive&&wave<118){X.fillStyle=`rgba(255,204,0,${0.4+Math.sin(frameN*0.06)*0.2})`;X.font='10px "Segoe UI"';X.fillText('[M] Mercy Button',W-10,uhY);}
   X.textAlign='start';
 }
 
